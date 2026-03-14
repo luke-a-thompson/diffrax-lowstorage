@@ -36,7 +36,7 @@ def _compiled_memory_bytes(solver_cls, y0):
             dt0=0.01,
             y0=y_init,
             saveat=saveat,
-            throw=False,
+            throw=True,
         )
         return sol.ys
 

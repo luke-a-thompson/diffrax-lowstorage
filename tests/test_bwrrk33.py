@@ -33,7 +33,7 @@ def test_lowstorage_solver_fixed_step(solver_name, solver_cls):
         dt0,
         y0,
         saveat=diffrax.SaveAt(t1=True),
-        throw=False,
+        throw=True,
     )
 
     expected = 1.0 / jnp.sqrt(1.0 + 20.0 * t1)
