@@ -5,13 +5,12 @@ import diffrax
 import jax
 import jax.numpy as jnp
 import pytest
+from bwrrk33 import BWRRK33
 from diffrax._solver.bosh3 import Bosh3
 
 _ROOT = Path(__file__).resolve().parents[1]
 _SRC = _ROOT / "diffrax-lowstorage"
 sys.path.insert(0, str(_SRC))
-
-from bwrrk33 import BWRRK33
 
 
 def _to_total_bytes(memory_stats) -> int:

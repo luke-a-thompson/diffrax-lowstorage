@@ -4,12 +4,12 @@ from pathlib import Path
 import diffrax
 import jax.numpy as jnp
 import pytest
+from bwrrk33 import BWRRK33
 
 _ROOT = Path(__file__).resolve().parents[1]
 _SRC = _ROOT / "diffrax-lowstorage"
 sys.path.insert(0, str(_SRC))
 
-from bwrrk33 import BWRRK33
 
 SOLVERS = [("bwrrk33", BWRRK33)]
 
