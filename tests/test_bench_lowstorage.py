@@ -6,11 +6,17 @@ import jax
 import jax.numpy as jnp
 import pytest
 from bwrrk33 import BWRRK33
-from diffrax._solver.bosh3 import Bosh3
+from diffrax import Bosh3, Heun
 
 _ROOT = Path(__file__).resolve().parents[1]
 _SRC = _ROOT / "diffrax-lowstorage"
 sys.path.insert(0, str(_SRC))
+
+SOLVERS = [
+    ("heun", Heun),
+    ("bosh3", Bosh3),
+    ("bwrrk33", BWRRK33),
+]
 
 
 def _to_total_bytes(memory_stats) -> int:
@@ -51,34 +57,27 @@ def _compiled_memory_bytes(solver_cls, y0):
 
 
 @pytest.mark.parametrize("problem_size", [8192])
-def test_lowstorage_vs_bosh3_compiled_memory(problem_size):
+def test_solvers_compiled_memory(problem_size):
     y0 = jnp.ones((problem_size,), dtype=jnp.float32)
 
-    bwrrk33_total, bwrrk33_stats = _compiled_memory_bytes(BWRRK33, y0)
-    bosh3_total, bosh3_stats = _compiled_memory_bytes(Bosh3, y0)
+    results = []
+    for solver_name, solver_cls in SOLVERS:
+        total, stats = _compiled_memory_bytes(solver_cls, y0)
+        results.append((solver_name, total, stats))
 
-    ratio = bwrrk33_total / bosh3_total if bosh3_total else float("inf")
-    print(
-        "\ncompiled-memory-bytes "
-        f"(size={problem_size}): "
-        f"bwrrk33={bwrrk33_total}, "
-        f"bosh3={bosh3_total}, "
-        f"ratio={ratio:.6f}"
-    )
-    print(
-        "bwrrk33 breakdown: "
-        f"temp={bwrrk33_stats.temp_size_in_bytes}, "
-        f"args={bwrrk33_stats.argument_size_in_bytes}, "
-        f"out={bwrrk33_stats.output_size_in_bytes}, "
-        f"alias={bwrrk33_stats.alias_size_in_bytes}"
-    )
-    print(
-        "bosh3 breakdown: "
-        f"temp={bosh3_stats.temp_size_in_bytes}, "
-        f"args={bosh3_stats.argument_size_in_bytes}, "
-        f"out={bosh3_stats.output_size_in_bytes}, "
-        f"alias={bosh3_stats.alias_size_in_bytes}"
-    )
+    summary = ", ".join(f"{name}={total}" for name, total, _ in results)
+    print(f"\ncompiled-memory-bytes (size={problem_size}): {summary}")
+    for name, total, _ in results:
+        ratio = total / results[0][1] if results[0][1] else float("inf")
+        print(f"{name} vs {results[0][0]} ratio={ratio:.6f}")
+    for name, _, stats in results:
+        print(
+            f"{name} breakdown: "
+            f"temp={stats.temp_size_in_bytes}, "
+            f"args={stats.argument_size_in_bytes}, "
+            f"out={stats.output_size_in_bytes}, "
+            f"alias={stats.alias_size_in_bytes}"
+        )
 
-    assert bwrrk33_total > 0
-    assert bosh3_total > 0
+    for name, total, _ in results:
+        assert total > 0, f"{name} reported non-positive compiled-memory bytes."
