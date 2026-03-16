@@ -1,10 +1,14 @@
 import jax.numpy as jnp
 
-from base import TwoNSolver
+from .base import LowStorageSolver
 
 
-class BWRRK33(TwoNSolver):
+class BWRRK33(LowStorageSolver):
     """3-stage, 3rd-order 2N low-storage RK method in Williamson form."""
+
+    def order(self, terms):
+        del terms
+        return 3
 
     def __init__(self):
         super().__init__(

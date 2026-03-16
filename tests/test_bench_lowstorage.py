@@ -1,21 +1,18 @@
-import sys
-from pathlib import Path
+import time
 
 import diffrax
 import jax
 import jax.numpy as jnp
 import pytest
-from bwrrk33 import BWRRK33
 from diffrax import Bosh3, Heun
 
-_ROOT = Path(__file__).resolve().parents[1]
-_SRC = _ROOT / "diffrax-lowstorage"
-sys.path.insert(0, str(_SRC))
+from diffrax_lowstorage import BWRRK33, BWRRK53
 
 SOLVERS = [
     ("heun", Heun),
     ("bosh3", Bosh3),
     ("bwrrk33", BWRRK33),
+    ("bwrrk53", BWRRK53),
 ]
 
 
@@ -62,22 +59,59 @@ def test_solvers_compiled_memory(problem_size):
 
     results = []
     for solver_name, solver_cls in SOLVERS:
-        total, stats = _compiled_memory_bytes(solver_cls, y0)
-        results.append((solver_name, total, stats))
+        total, _ = _compiled_memory_bytes(solver_cls, y0)
+        results.append((solver_name, total))
 
-    summary = ", ".join(f"{name}={total}" for name, total, _ in results)
-    print(f"\ncompiled-memory-bytes (size={problem_size}): {summary}")
-    for name, total, _ in results:
+    print(f"\ncompiled-memory-bytes (size={problem_size}):")
+    for name, total in results:
         ratio = total / results[0][1] if results[0][1] else float("inf")
-        print(f"{name} vs {results[0][0]} ratio={ratio:.6f}")
-    for name, _, stats in results:
-        print(
-            f"{name} breakdown: "
-            f"temp={stats.temp_size_in_bytes}, "
-            f"args={stats.argument_size_in_bytes}, "
-            f"out={stats.output_size_in_bytes}, "
-            f"alias={stats.alias_size_in_bytes}"
-        )
+        print(f"  {name}: {total} bytes  (vs {results[0][0]}: {ratio:.3f}x)")
 
-    for name, total, _ in results:
+    for name, total in results:
         assert total > 0, f"{name} reported non-positive compiled-memory bytes."
+
+
+def _runtime_seconds(solver_cls, y0, n_repeats=100):
+    solver = solver_cls()
+    term = diffrax.ODETerm(lambda t, y, args: -10.0 * y**3)
+    saveat = diffrax.SaveAt(t1=True)
+
+    @jax.jit
+    def run(y_init):
+        sol = diffrax.diffeqsolve(
+            term,
+            solver,
+            t0=0.0,
+            t1=1.0,
+            dt0=0.01,
+            y0=y_init,
+            saveat=saveat,
+            throw=True,
+        )
+        return sol.ys
+
+    # Warmup
+    jax.block_until_ready(run(y0))
+
+    t0 = time.perf_counter()
+    for _ in range(n_repeats):
+        jax.block_until_ready(run(y0))
+    return (time.perf_counter() - t0) / n_repeats
+
+
+@pytest.mark.parametrize("problem_size", [8192])
+def test_solvers_runtime(problem_size):
+    y0 = jnp.ones((problem_size,), dtype=jnp.float32)
+
+    results = []
+    for solver_name, solver_cls in SOLVERS:
+        t = _runtime_seconds(solver_cls, y0)
+        results.append((solver_name, t))
+
+    print(f"\nruntime (size={problem_size}):")
+    for name, t in results:
+        ratio = t / results[0][1] if results[0][1] else float("inf")
+        print(f"  {name}: {t * 1e3:.3f} ms  (vs {results[0][0]}: {ratio:.3f}x)")
+
+    for name, t in results:
+        assert t > 0, f"{name} reported non-positive runtime."

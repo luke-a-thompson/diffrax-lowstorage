@@ -1,17 +1,10 @@
-import sys
-from pathlib import Path
-
 import diffrax
 import jax.numpy as jnp
 import pytest
-from bwrrk33 import BWRRK33
-
-_ROOT = Path(__file__).resolve().parents[1]
-_SRC = _ROOT / "diffrax-lowstorage"
-sys.path.insert(0, str(_SRC))
+from diffrax_lowstorage import BWRRK33, BWRRK53
 
 
-SOLVERS = [("bwrrk33", BWRRK33)]
+SOLVERS = [("bwrrk33", BWRRK33), ("bwrrk53", BWRRK53)]
 
 
 @pytest.mark.parametrize(("solver_name", "solver_cls"), SOLVERS)

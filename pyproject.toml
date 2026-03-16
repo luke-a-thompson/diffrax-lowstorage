@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "diffrax>=0.7.2",
+    "jax[cuda]>=0.9.1",
 ]
 
 [project.optional-dependencies]
@@ -18,10 +19,7 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["base", "bwrrk33"]
-
-[tool.setuptools.package-dir]
-"" = "diffrax-lowstorage"
+packages = ["diffrax_lowstorage"]
 
 [tool.pytest.ini_options]
-pythonpath = ["diffrax-lowstorage"]
+pythonpath = ["."]
