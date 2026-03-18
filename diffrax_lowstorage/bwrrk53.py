@@ -1,6 +1,18 @@
-import jax.numpy as jnp
+from typing import ClassVar
 
-from .base import LowStorageSolver
+import numpy as np
+
+from .base import LowStorageRecurrence, LowStorageSolver
+
+_tableau = LowStorageRecurrence(
+    # Williamson A-form coefficients (A1 is implicitly 0, so we store A2..A5)
+    A=np.array([-5.0 / 8.0, -4.0 / 3.0, -3.0 / 4.0, -8.0 / 5.0]),
+    # Williamson B coefficients (B1..B5)
+    B=np.array([1.0 / 4.0, 2.0 / 3.0, 1.0 / 2.0, 2.0 / 5.0, 1.0 / 9.0]),
+    # Stage times for non-autonomous problems (from the equivalent ERK tableau)
+    C=np.array([0.0, 1.0 / 4.0, 1.0 / 2.0, 3.0 / 4.0, 1.0]),
+    penultimate_stage_error=True,
+)
 
 
 class BWRRK53(LowStorageSolver):
@@ -9,40 +21,8 @@ class BWRRK53(LowStorageSolver):
     so you get an embedded (3,2) pair with error ≈ y_final - y_penultimate.
     """
 
+    tableau: ClassVar[LowStorageRecurrence] = _tableau
+
     def order(self, terms):
         del terms
         return 3
-
-    def __init__(self):
-        super().__init__(
-            # Williamson A-form coefficients (A1 is implicitly 0, so we store A2..A5)
-            A=jnp.array(
-                [
-                    -5.0 / 8.0,  # A2
-                    -4.0 / 3.0,  # A3
-                    -3.0 / 4.0,  # A4
-                    -8.0 / 5.0,  # A5
-                ]
-            ),
-            # Williamson B coefficients (B1..B5)
-            B=jnp.array(
-                [
-                    1.0 / 4.0,  # B1
-                    2.0 / 3.0,  # B2
-                    1.0 / 2.0,  # B3
-                    2.0 / 5.0,  # B4
-                    1.0 / 9.0,  # B5
-                ]
-            ),
-            # Stage times for non-autonomous problems (from the equivalent ERK tableau)
-            C=jnp.array(
-                [
-                    0.0,
-                    1.0 / 4.0,
-                    1.0 / 2.0,
-                    3.0 / 4.0,
-                    1.0,
-                ]
-            ),
-            use_penultimate_stage_error=True,
-        )

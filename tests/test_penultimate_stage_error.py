@@ -23,6 +23,7 @@ def test_bwrrk53_penultimate_stage_error_supports_pid():
 
     expected = jnp.exp(-1.0)
     assert out.result == diffrax.RESULTS.successful
+    assert out.ys is not None
     assert jnp.allclose(out.ys[0], expected, rtol=2e-3, atol=2e-4)
 
 

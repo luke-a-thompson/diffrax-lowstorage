@@ -1,49 +1,33 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import ClassVar, TypeAlias
 
 import jax.lax as lax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+import numpy as np
 from diffrax import RESULTS, AbstractSolver, AbstractTerm, LocalLinearInterpolation
-from jaxtyping import ArrayLike
 
 _SolverState: TypeAlias = None
 
 
-class LowStorageSolver(AbstractSolver):
-    """Minimal explicit 2N low-storage Runge--Kutta solver.
+@dataclass(frozen=True)
+class LowStorageRecurrence:
+    """Coefficients for a 2N Williamson-style low-storage Runge--Kutta method."""
 
-    This implements the classic Williamson-style recursion using three coefficient
-    arrays:
+    A: np.ndarray
+    B: np.ndarray
+    C: np.ndarray
+    penultimate_stage_error: bool = False
 
-    - `A`: length `s - 1`
-    - `B`: length `s`
-    - `C`: length `s` (stage-time fractions, with `C[0] == 0`)
+    num_stages: int = field(init=False)
 
-    for `s` stages.
-
-    It intentionally omits FSAL and high-order dense output.
-
-    When `use_penultimate_stage_error=True`, it returns an embedded error estimate via
-    `y_final - y_penultimate`.
-    """
-
-    A: ArrayLike
-    B: ArrayLike
-    C: ArrayLike
-
-    term_structure: ClassVar = AbstractTerm
-    interpolation_cls: ClassVar[Callable[..., LocalLinearInterpolation]] = (
-        LocalLinearInterpolation
-    )
-    use_penultimate_stage_error: bool = False
-
-    def __check_init__(self):
-        a = jnp.asarray(self.A)
-        b = jnp.asarray(self.B)
-        c = jnp.asarray(self.C)
+    def __post_init__(self):
+        a = np.asarray(self.A)
+        b = np.asarray(self.B)
+        c = np.asarray(self.C)
         if a.ndim != 1 or b.ndim != 1 or c.ndim != 1:
             raise ValueError("A, B, C must all be 1D arrays")
         num_stages = b.shape[0]
@@ -53,13 +37,25 @@ class LowStorageSolver(AbstractSolver):
             raise ValueError("C must have the same length as B")
         if a.shape[0] != num_stages - 1:
             raise ValueError("A must have length len(B) - 1")
-        if self.use_penultimate_stage_error and num_stages < 2:
+        if self.penultimate_stage_error and num_stages < 2:
             raise ValueError(
                 "Need at least two stages for `use_penultimate_stage_error=True`."
             )
+        object.__setattr__(self, "num_stages", num_stages)
+
+
+class LowStorageSolver(AbstractSolver):
+    """Minimal explicit 2N low-storage Runge--Kutta solver in Williamson form."""
+
+    tableau: ClassVar[LowStorageRecurrence]
+
+    term_structure: ClassVar = AbstractTerm
+    interpolation_cls: ClassVar[Callable[..., LocalLinearInterpolation]] = (
+        LocalLinearInterpolation
+    )
 
     def error_order(self, terms):
-        if not self.use_penultimate_stage_error:
+        if not self.tableau.penultimate_stage_error:
             return None
 
         # For these 2N methods, penultimate stage is taken to be order-1, so the local
@@ -88,9 +84,9 @@ class LowStorageSolver(AbstractSolver):
         made_jump,
     ):
         del solver_state, made_jump
-        a = jnp.asarray(self.A)
-        b = jnp.asarray(self.B)
-        c = jnp.asarray(self.C)
+        a = jnp.asarray(self.tableau.A)
+        b = jnp.asarray(self.tableau.B)
+        c = jnp.asarray(self.tableau.C)
 
         dt = t1 - t0
         control = terms.contr(t0, t1)
@@ -110,7 +106,7 @@ class LowStorageSolver(AbstractSolver):
             y = jtu.tree_map(lambda yi, t: yi + b_i * t, y, tmp)
             return (y, tmp), None
 
-        if self.use_penultimate_stage_error:
+        if self.tableau.penultimate_stage_error:
             # Run scan up to the penultimate stage, then do the final stage manually.
             # This keeps the carry at true 2N (y, tmp) — no extra state copy needed.
             (y_pen, tmp_pen), _ = lax.scan(
