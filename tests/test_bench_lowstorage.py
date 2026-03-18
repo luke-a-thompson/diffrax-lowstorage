@@ -4,16 +4,9 @@ import diffrax
 import jax
 import jax.numpy as jnp
 import pytest
-from diffrax import Bosh3, Heun
 
-from diffrax_lowstorage import BWRRK33, BWRRK53
+from conftest import SOLVERS
 
-SOLVERS = [
-    ("heun", Heun),
-    ("bosh3", Bosh3),
-    ("bwrrk33", BWRRK33),
-    ("bwrrk53", BWRRK53),
-]
 
 REVERSE_MODE_ADJOINTS = [
     ("recursive_checkpoint", diffrax.RecursiveCheckpointAdjoint()),

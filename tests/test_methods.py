@@ -2,13 +2,10 @@ import diffrax
 import jax
 import jax.numpy as jnp
 import pytest
-
-from diffrax_lowstorage import BWRRK33, BWRRK53, YRK135
+from conftest import SOLVERS
 
 # Needed to get slope for high order methods
 jax.config.update("jax_enable_x64", True)
-
-SOLVERS = [("bwrrk33", BWRRK33), ("bwrrk53", BWRRK53), ("yrk135", YRK135)]
 
 
 @pytest.mark.parametrize(("solver_name", "solver_cls"), SOLVERS)
