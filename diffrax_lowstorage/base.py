@@ -134,3 +134,28 @@ class LowStorageSolver(AbstractSolver):
         args,
     ):
         return terms.vf(t0, y0, args)
+
+    def to_commutator_free(self):
+        try:
+            from georax import AbstractLowStorageCommutatorFreeSolver
+        except ImportError as exc:
+            raise ImportError(
+                "georax is required to convert a low-storage solver into a "
+                "commutator-free solver."
+            ) from exc
+
+        solver = self
+
+        def order(self, terms):
+            return solver.order(terms)
+
+        commutator_free_cls = type(
+            f"{type(self).__name__}CommutatorFree",
+            (AbstractLowStorageCommutatorFreeSolver,),
+            {
+                "recurrence": solver.recurrance,
+                "order": order,
+                "__module__": type(self).__module__,
+            },
+        )
+        return commutator_free_cls()
