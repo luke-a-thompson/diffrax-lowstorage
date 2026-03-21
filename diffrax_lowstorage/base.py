@@ -47,7 +47,7 @@ class LowStorageRecurrence:
 class LowStorageSolver(AbstractSolver):
     """Minimal explicit 2N low-storage Runge--Kutta solver in Williamson form."""
 
-    tableau: ClassVar[LowStorageRecurrence]
+    recurrance: ClassVar[LowStorageRecurrence]
 
     term_structure: ClassVar = AbstractTerm
     interpolation_cls: ClassVar[Callable[..., LocalLinearInterpolation]] = (
@@ -55,7 +55,7 @@ class LowStorageSolver(AbstractSolver):
     )
 
     def error_order(self, terms):
-        if not self.tableau.penultimate_stage_error:
+        if not self.recurrance.penultimate_stage_error:
             return None
 
         # For these 2N methods, penultimate stage is taken to be order-1, so the local
@@ -84,9 +84,9 @@ class LowStorageSolver(AbstractSolver):
         made_jump,
     ):
         del solver_state, made_jump
-        a = jnp.asarray(self.tableau.A)
-        b = jnp.asarray(self.tableau.B)
-        c = jnp.asarray(self.tableau.C)
+        a = jnp.asarray(self.recurrance.A)
+        b = jnp.asarray(self.recurrance.B)
+        c = jnp.asarray(self.recurrance.C)
 
         dt = t1 - t0
         control = terms.contr(t0, t1)
@@ -106,7 +106,7 @@ class LowStorageSolver(AbstractSolver):
             y = jtu.tree_map(lambda yi, t: yi + b_i * t, y, tmp)
             return (y, tmp), None
 
-        if self.tableau.penultimate_stage_error:
+        if self.recurrance.penultimate_stage_error:
             # Run scan up to the penultimate stage, then do the final stage manually.
             # This keeps the carry at true 2N (y, tmp) — no extra state copy needed.
             (y_pen, tmp_pen), _ = lax.scan(
