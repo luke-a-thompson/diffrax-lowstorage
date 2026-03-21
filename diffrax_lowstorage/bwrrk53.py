@@ -4,7 +4,7 @@ import numpy as np
 
 from .base import LowStorageRecurrence, LowStorageSolver
 
-_tableau = LowStorageRecurrence(
+_bwrrk53_tableau = LowStorageRecurrence(
     # Williamson A-form coefficients (A1 is implicitly 0, so we store A2..A5)
     A=np.array([-5.0 / 8.0, -4.0 / 3.0, -3.0 / 4.0, -8.0 / 5.0]),
     # Williamson B coefficients (B1..B5)
@@ -21,7 +21,7 @@ class BWRRK53(LowStorageSolver):
     so you get an embedded (3,2) pair with error ≈ y_final - y_penultimate.
     """
 
-    tableau: ClassVar[LowStorageRecurrence] = _tableau
+    tableau: ClassVar[LowStorageRecurrence] = _bwrrk53_tableau
 
     def order(self, terms):
         del terms

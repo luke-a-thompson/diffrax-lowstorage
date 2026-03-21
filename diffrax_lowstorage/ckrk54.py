@@ -4,7 +4,7 @@ import numpy as np
 
 from .base import LowStorageRecurrence, LowStorageSolver
 
-_tableau = LowStorageRecurrence(
+_ckrk54_tableau = LowStorageRecurrence(
     # Williamson A-form coefficients (A1 is implicitly 0, so we store A2..A5)
     A=np.array([-0.4178904745, -1.192151694643, -1.697784692471, -1.514183444257]),
     # Williamson B coefficients (B1..B5)
@@ -32,7 +32,7 @@ class CKRK54(LowStorageSolver):
         Table 3, Solution 3
     """
 
-    tableau: ClassVar[LowStorageRecurrence] = _tableau
+    tableau: ClassVar[LowStorageRecurrence] = _ckrk54_tableau
 
     def order(self, terms):
         del terms
