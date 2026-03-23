@@ -4,11 +4,12 @@
 
 ## Solvers
 
-| Class | Stages | Order | Notes |
-|-------|--------|-------|-------|
-| `BWRRK33` | 3 | 3 | |
-| `BWRRK53` | 5 | 3 | Embedded (3,2) error via penultimate stage |
-| `YRK135` | 13 | 5 (8 for autonomous linear) | Yan 2017 |
+| Class | Stages | Order | Automatic stepsizing |
+|-------|--------|-------|----------------------|
+| `BWRRK33` | 3 | 3 | No |
+| `BWRRK53` | 5 | 3 | Yes |
+| `CKRK54` | 5 | 4 | No |
+| `YRK135` | 13 | 5 (8 for autonomous linear) | No |
 
 ## Usage
 
@@ -23,8 +24,14 @@ sol = diffrax.diffeqsolve(
 )
 ```
 
+## Commutator-Free Conversion
+
+If you want a commutator-free equivalent, call `to_commutator_free()` on one of the
+low-storage solvers. This uses [georax](https://github.com/luke-a-thompson/georax)
+to build the matching commutator-free solver.
+
 ## Install
 
 ```
-pip install diffrax-lowstorage
+uv sync
 ```
