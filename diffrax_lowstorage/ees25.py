@@ -19,7 +19,10 @@ _SolverState = Y
 
 
 class EES25(LowStorageSolver, AbstractReversibleSolver):
-    """2N-EES(2,5;1/4) solver."""
+    """2N-EES(2,5;1/4) solver.
+
+    Reference:
+        Unpublished work."""
 
     recurrence: ClassVar[LowStorageRecurrence] = _ees25_recurrence
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import ClassVar, override
 
 import numpy as np
-from diffrax import AbstractReversibleSolver, AbstractTerm, RESULTS
+from diffrax import RESULTS, AbstractReversibleSolver, AbstractTerm
 from diffrax._custom_types import Args, BoolScalarLike, DenseInfo, RealScalarLike, Y
 from jaxtyping import PyTree
 
@@ -20,7 +20,10 @@ _SolverState = Y
 
 
 class EES27(LowStorageSolver, AbstractReversibleSolver):
-    """2N-EES(2,7;(1/4)) solver."""
+    """2N-EES(2,7;(1/4)) solver.
+
+    Reference:
+        Unpublished work."""
 
     recurrence: ClassVar[LowStorageRecurrence] = _ees27_recurrence
 

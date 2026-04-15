@@ -57,7 +57,6 @@ def test_lowstorage_solver_order(solver_name, solver_cls):
 
     t0, t1, y0 = 0.0, 1.0, 1.0
     exact_t1 = 1.0 / jnp.sqrt(1.0 + 20.0 * t1)
-
     dts = jnp.array([0.025, 0.0125, 0.00625, 0.003125])
 
     slope = _measure_order(term, solver, t0, t1, y0, exact_t1, dts)
@@ -67,10 +66,23 @@ def test_lowstorage_solver_order(solver_name, solver_cls):
     )
 
     if isinstance(solver, diffrax.AbstractReversibleSolver):
-        slope_back = _measure_order(term, solver, t1, t0, float(exact_t1), y0, -dts)
-        print(
-            f"{solver_name} backward: expected={expected_order}, measured={slope_back:.2f}"
-        )
-        assert slope_back >= expected_order * 0.9, (
-            f"Backward: expected order ~{expected_order}, got slope {slope_back:.2f}"
+        expected_rt_order = solver.antisymmetric_order(term)
+        # Larger steps than the forward test: high-order cancellation is visible
+        # before floating-point noise dominates.
+        dts_rt = jnp.array([1 / 64, 1 / 128, 1 / 256, 1 / 512])
+        rt_errors = []
+        for dt in dts_rt:
+            out_fwd = diffrax.diffeqsolve(
+                term, solver, t0, t1, float(dt), y0, saveat=diffrax.SaveAt(t1=True)
+            )
+            assert out_fwd.ys is not None
+            out_bwd = diffrax.diffeqsolve(
+                term, solver, t1, t0, -float(dt), float(out_fwd.ys[0]), saveat=diffrax.SaveAt(t1=True)
+            )
+            assert out_bwd.ys is not None
+            rt_errors.append(float(jnp.abs(out_bwd.ys[0] - y0)))
+        slope_rt = float(jnp.polyfit(jnp.log(dts_rt), jnp.log(jnp.array(rt_errors)), 1)[0])
+        print(f"{solver_name} roundtrip: expected={expected_rt_order}, measured={slope_rt:.2f}")
+        assert slope_rt >= expected_rt_order * 0.9, (
+            f"Round-trip: expected order ~{expected_rt_order}, got slope {slope_rt:.2f}"
         )
