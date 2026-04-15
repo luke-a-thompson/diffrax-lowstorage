@@ -29,7 +29,7 @@ _ees27_recurrence = LowStorageRecurrence(
 
 
 class EES27(LowStorageSolver, AbstractReversibleSolver):
-    """Commutator-free EES(2,5;1/4) solver with chained exponentials."""
+    """2N-EES(2,7;(1/4)) solver."""
 
     recurrence: ClassVar[LowStorageRecurrence] = _ees27_recurrence
 

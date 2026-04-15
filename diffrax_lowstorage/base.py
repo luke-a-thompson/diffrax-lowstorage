@@ -149,13 +149,21 @@ class LowStorageSolver(AbstractSolver):
         def order(self, terms):
             return solver.order(terms)
 
+        cls_dict = {
+            "recurrence": solver.recurrance,
+            "order": order,
+            "__module__": type(self).__module__,
+        }
+
+        if hasattr(type(self), "antisymmetric_order"):
+            def antisymmetric_order(self, terms):
+                return solver.antisymmetric_order(terms)
+
+            cls_dict["antisymmetric_order"] = antisymmetric_order
+
         commutator_free_cls = type(
             f"{type(self).__name__}CommutatorFree",
             (AbstractLowStorageCommutatorFreeSolver,),
-            {
-                "recurrence": solver.recurrance,
-                "order": order,
-                "__module__": type(self).__module__,
-            },
+            cls_dict,
         )
         return commutator_free_cls()
