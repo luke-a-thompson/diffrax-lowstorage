@@ -13,6 +13,9 @@ dependencies = [
     "diffrax>=0.7.1",
 ]
 
+[tool.uv.sources]
+diffrax = { git = "https://github.com/sammccallum/diffrax", rev = "aeb1335b5a6278e85a270231e0f97b8db4453ae6" }
+
 [project.optional-dependencies]
 dev = [
     "pytest",

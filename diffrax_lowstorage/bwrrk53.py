@@ -2,7 +2,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from .base import LowStorageRecurrence, LowStorageSolver
+from diffrax_lowstorage.base import LowStorageRecurrence, LowStorageSolver
 
 _bwrrk53_tableau = LowStorageRecurrence(
     # Williamson A-form coefficients (A1 is implicitly 0, so we store A2..A5)
