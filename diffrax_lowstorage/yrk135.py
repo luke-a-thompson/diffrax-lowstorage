@@ -73,7 +73,7 @@ class YRK135(LowStorageSolver):
         277–86. https://doi.org/10.1063/1674-0068/30/cjcp1703025. Table II.
     """
 
-    tableau: ClassVar[LowStorageRecurrence] = _yrk135_tableau
+    recurrence: ClassVar[LowStorageRecurrence] = _yrk135_tableau
 
     @override
     def order(self, terms):

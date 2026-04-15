@@ -32,7 +32,7 @@ class CKRK54(LowStorageSolver):
         Table 3, Solution 3
     """
 
-    tableau: ClassVar[LowStorageRecurrence] = _ckrk54_tableau
+    recurrence: ClassVar[LowStorageRecurrence] = _ckrk54_tableau
 
     def order(self, terms):
         del terms

@@ -21,7 +21,7 @@ class BWRRK53(LowStorageSolver):
     so you get an embedded (3,2) pair with error ≈ y_final - y_penultimate.
     """
 
-    tableau: ClassVar[LowStorageRecurrence] = _bwrrk53_tableau
+    recurrence: ClassVar[LowStorageRecurrence] = _bwrrk53_tableau
 
     def order(self, terms):
         del terms

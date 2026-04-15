@@ -19,7 +19,7 @@ class BWRRK33(LowStorageSolver):
         Williamson, J. H. 1980. “Low-Storage Runge-Kutta Schemes.” Journal of Computational Physics 35 (1): 48–56. https://doi.org/10.1016/0021-9991(80)90033-9.
     """
 
-    tableau: ClassVar[LowStorageRecurrence] = _bwrrk33_tableau
+    recurrence: ClassVar[LowStorageRecurrence] = _bwrrk33_tableau
 
     def order(self, terms):
         del terms

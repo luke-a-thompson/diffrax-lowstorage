@@ -43,11 +43,101 @@ class LowStorageRecurrence:
             )
         object.__setattr__(self, "num_stages", num_stages)
 
+    def to_butcher(self):
+        """Convert to a :class:`diffrax.ButcherTableau`.
+
+        For methods with ``penultimate_stage_error=True``, the embedded error
+        coefficients are set to ``b_sol - b_penultimate`` (the penultimate stage
+        value). Otherwise ``b_error`` is zero and no error estimate is provided.
+        """
+        from diffrax import ButcherTableau
+
+        s = self.num_stages
+        A = self.A
+        B = self.B
+
+        # P[i, j] = coefficient of k_j in tmp_i (the recurrence accumulator).
+        # P[i, j] = prod(A[j:i])  (empty product = 1 when j == i).
+        # Q[i, j] = coefficient of k_j in (y_{i+1} - y0).
+        # Q[i, j] = sum_{m=j}^{i} B[m] * P[m, j]
+        P = np.zeros((s, s))
+        Q = np.zeros((s, s))
+        for i in range(s):
+            P[i, i] = 1.0
+            for j in range(i):
+                P[i, j] = A[i - 1] * P[i - 1, j]
+            q_prev = Q[i - 1] if i > 0 else np.zeros(s)
+            for j in range(i + 1):
+                Q[i, j] = q_prev[j] + B[i] * P[i, j]
+
+        a_lower = tuple(Q[i, : i + 1].copy() for i in range(s - 1))
+        b_sol = Q[s - 1].copy()
+
+        if self.penultimate_stage_error:
+            b_embedded = np.append(Q[s - 2, : s - 1], 0.0)
+            b_error = b_sol - b_embedded
+        else:
+            b_error = np.zeros(s)
+
+        return ButcherTableau(
+            c=self.C[1:].copy(),
+            b_sol=b_sol,
+            b_error=b_error,
+            a_lower=a_lower,
+        )
+
+    @classmethod
+    def from_butcher(cls, tableau) -> "LowStorageRecurrence":
+        """Construct from a :class:`diffrax.ButcherTableau`.
+
+        Raises ``ValueError`` if the tableau does not have the structure required
+        for a 2N Williamson representation.
+        """
+        s = tableau.num_stages
+        b_sol = np.asarray(tableau.b_sol)
+        a_lower = [np.asarray(a) for a in tableau.a_lower]
+        C = np.concatenate([[tableau.c1], np.asarray(tableau.c)])
+
+        if s == 1:
+            return cls(A=np.array([]), B=b_sol.copy(), C=C)
+
+        # B[i] = diagonal of a_lower; B[s-1] = b_sol[s-1].
+        B = np.empty(s)
+        for i in range(s - 1):
+            B[i] = a_lower[i][i]
+        B[s - 1] = b_sol[s - 1]
+
+        # A[i-1] = (a_lower[i][i-1] - a_lower[i-1][i-1]) / B[i]  for i in 1..s-2
+        # A[s-2]  = (b_sol[s-2] - B[s-2]) / B[s-1]
+        A = np.empty(s - 1)
+        for i in range(1, s - 1):
+            A[i - 1] = (a_lower[i][i - 1] - a_lower[i - 1][i - 1]) / B[i]
+        A[s - 2] = (b_sol[s - 2] - B[s - 2]) / B[s - 1]
+
+        recurrence = cls(A=A, B=B, C=C)
+        reconstructed = recurrence.to_butcher()
+
+        if not np.allclose(reconstructed.b_sol, b_sol):
+            raise ValueError(
+                "Butcher tableau is not representable as a 2N low-storage method."
+            )
+        for r, given in zip(reconstructed.a_lower, a_lower):
+            if not np.allclose(r, given):
+                raise ValueError(
+                    "Butcher tableau is not representable as a 2N low-storage method."
+                )
+
+        b_error = np.asarray(tableau.b_error)
+        b_penultimate = np.append(reconstructed.a_lower[-1], 0.0)
+        penultimate_stage_error = np.allclose(b_error, b_sol - b_penultimate)
+
+        return cls(A=A, B=B, C=C, penultimate_stage_error=penultimate_stage_error)
+
 
 class LowStorageSolver(AbstractSolver):
     """Minimal explicit 2N low-storage Runge--Kutta solver in Williamson form."""
 
-    recurrance: ClassVar[LowStorageRecurrence]
+    recurrence: ClassVar[LowStorageRecurrence]
 
     term_structure: ClassVar = AbstractTerm
     interpolation_cls: ClassVar[Callable[..., LocalLinearInterpolation]] = (
@@ -55,7 +145,7 @@ class LowStorageSolver(AbstractSolver):
     )
 
     def error_order(self, terms):
-        if not self.recurrance.penultimate_stage_error:
+        if not self.recurrence.penultimate_stage_error:
             return None
 
         # For these 2N methods, penultimate stage is taken to be order-1, so the local
@@ -84,9 +174,9 @@ class LowStorageSolver(AbstractSolver):
         made_jump,
     ):
         del solver_state, made_jump
-        a = jnp.asarray(self.recurrance.A)
-        b = jnp.asarray(self.recurrance.B)
-        c = jnp.asarray(self.recurrance.C)
+        a = jnp.asarray(self.recurrence.A)
+        b = jnp.asarray(self.recurrence.B)
+        c = jnp.asarray(self.recurrence.C)
 
         dt = t1 - t0
         control = terms.contr(t0, t1)
@@ -106,7 +196,7 @@ class LowStorageSolver(AbstractSolver):
             y = jtu.tree_map(lambda yi, t: yi + b_i * t, y, tmp)
             return (y, tmp), None
 
-        if self.recurrance.penultimate_stage_error:
+        if self.recurrence.penultimate_stage_error:
             # Run scan up to the penultimate stage, then do the final stage manually.
             # This keeps the carry at true 2N (y, tmp) — no extra state copy needed.
             (y_pen, tmp_pen), _ = lax.scan(
@@ -150,12 +240,13 @@ class LowStorageSolver(AbstractSolver):
             return solver.order(terms)
 
         cls_dict = {
-            "recurrence": solver.recurrance,
+            "recurrence": solver.recurrence,
             "order": order,
             "__module__": type(self).__module__,
         }
 
         if hasattr(type(self), "antisymmetric_order"):
+
             def antisymmetric_order(self, terms):
                 return solver.antisymmetric_order(terms)
 

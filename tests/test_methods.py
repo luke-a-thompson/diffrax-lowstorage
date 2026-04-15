@@ -36,17 +36,8 @@ def test_lowstorage_solver_fixed_step(solver_name, solver_cls):
     assert jnp.allclose(out.ys[0], expected, rtol=2e-2, atol=2e-3)
 
 
-@pytest.mark.parametrize(("solver_name", "solver_cls"), SOLVERS)
-def test_lowstorage_solver_order(solver_name, solver_cls):
-    del solver_name
-    term = diffrax.ODETerm(lambda t, y, args: -10 * y**3)
-    solver = solver_cls()
-    expected_order = solver.order(term)
-
-    t0, t1, y0 = 0.0, 1.0, 1.0
-    exact = 1.0 / jnp.sqrt(1.0 + 20.0 * t1)
-
-    dts = jnp.array([0.1, 0.05, 0.025, 0.0125])
+def _measure_order(term, solver, t0, t1, y0, exact, dts):
+    log_dts = jnp.log(jnp.abs(dts))
     errors = []
     for dt in dts:
         out = diffrax.diffeqsolve(
@@ -54,11 +45,32 @@ def test_lowstorage_solver_order(solver_name, solver_cls):
         )
         assert out.ys is not None
         errors.append(float(jnp.abs(out.ys[0] - exact)))
-
-    log_dts = jnp.log(dts)
     log_errs = jnp.log(jnp.array(errors))
-    slope = float(jnp.polyfit(log_dts, log_errs, 1)[0])
+    return float(jnp.polyfit(log_dts, log_errs, 1)[0])
 
+
+@pytest.mark.parametrize(("solver_name", "solver_cls"), SOLVERS)
+def test_lowstorage_solver_order(solver_name, solver_cls):
+    term = diffrax.ODETerm(lambda t, y, args: -10 * y**3)
+    solver = solver_cls()
+    expected_order = solver.order(term)
+
+    t0, t1, y0 = 0.0, 1.0, 1.0
+    exact_t1 = 1.0 / jnp.sqrt(1.0 + 20.0 * t1)
+
+    dts = jnp.array([0.025, 0.0125, 0.00625, 0.003125])
+
+    slope = _measure_order(term, solver, t0, t1, y0, exact_t1, dts)
+    print(f"\n{solver_name} forward:  expected={expected_order}, measured={slope:.2f}")
     assert slope >= expected_order * 0.9, (
         f"Expected order ~{expected_order}, got slope {slope:.2f}"
     )
+
+    if isinstance(solver, diffrax.AbstractReversibleSolver):
+        slope_back = _measure_order(term, solver, t1, t0, float(exact_t1), y0, -dts)
+        print(
+            f"{solver_name} backward: expected={expected_order}, measured={slope_back:.2f}"
+        )
+        assert slope_back >= expected_order * 0.9, (
+            f"Backward: expected order ~{expected_order}, got slope {slope_back:.2f}"
+        )
