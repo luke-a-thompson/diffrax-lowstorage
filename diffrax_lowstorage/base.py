@@ -1,16 +1,202 @@
 from __future__ import annotations
 
+import functools as ft
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import ClassVar, TypeAlias
 
-import jax.lax as lax
+import equinox as eqx
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
-from diffrax import RESULTS, AbstractSolver, AbstractTerm, LocalLinearInterpolation
+from diffrax import (
+    RESULTS,
+    AbstractSolver,
+    AbstractTerm,
+    LocalLinearInterpolation,
+)
 
 _SolverState: TypeAlias = None
+
+
+def _materialise_tree(primal, grad_primal):
+    if grad_primal is None:
+        return jtu.tree_map(jnp.zeros_like, primal)
+    return jtu.tree_map(
+        lambda p, g: jnp.zeros_like(p) if g is None else g, primal, grad_primal
+    )
+
+
+def _any_perturbed(tree):
+    return any(jtu.tree_leaves(tree))
+
+
+def _none_tree(tree):
+    return jtu.tree_map(lambda _: None, tree)
+
+
+def _first_stage(terms, t, y, args, control, *, b0):
+    tmp = terms.vf_prod(t, y, args, control)
+    y_next = jtu.tree_map(lambda yi, tmpi: yi + b0 * tmpi, y, tmp)
+    return y_next, tmp
+
+
+def _later_stage(terms, t, y, tmp, args, control, *, a_i, b_i):
+    k = terms.vf_prod(t, y, args, control)
+    tmp_next = jtu.tree_map(lambda tmpi, ki: a_i * tmpi + ki, tmp, k)
+    y_next = jtu.tree_map(lambda yi, tmpi: yi + b_i * tmpi, y, tmp_next)
+    return y_next, tmp_next
+
+
+def _run_low_storage_step(terms, t0, t1, y0, args, *, recurrence):
+    a = jnp.asarray(recurrence.A)
+    b = jnp.asarray(recurrence.B)
+    c = jnp.asarray(recurrence.C)
+
+    dt = t1 - t0
+    control = terms.contr(t0, t1)
+    ts = jnp.where(c[1:] == 1.0, t1, t0 + c[1:] * dt)
+
+    stage_inputs_y = [y0]
+    stage_inputs_tmp = [None]
+
+    y, tmp = _first_stage(terms, t0, y0, args, control, b0=b[0])
+    for i, (a_i, b_i, t_stage) in enumerate(zip(a, b[1:], ts), start=1):
+        stage_inputs_y.append(y)
+        stage_inputs_tmp.append(tmp)
+        y, tmp = _later_stage(terms, t_stage, y, tmp, args, control, a_i=a_i, b_i=b_i)
+
+    if recurrence.penultimate_stage_error:
+        y_error = jtu.tree_map(lambda y1i, ypeni: y1i - ypeni, y, stage_inputs_y[-1])
+    else:
+        y_error = None
+    dense_info = dict(y0=y0, y1=y)
+    return (y, y_error, dense_info), (
+        control,
+        ts,
+        stage_inputs_y,
+        stage_inputs_tmp,
+        tmp,
+    )
+
+
+@eqx.filter_custom_vjp
+def _low_storage_step(vjp_arg, *, recurrence):
+    terms, t0, t1, y0, args = vjp_arg
+    out, _ = _run_low_storage_step(terms, t0, t1, y0, args, recurrence=recurrence)
+    return out
+
+
+@_low_storage_step.def_fwd
+def _low_storage_step_fwd(perturbed, vjp_arg, *, recurrence):
+    del perturbed
+    terms, t0, t1, y0, args = vjp_arg
+    out, _ = _run_low_storage_step(terms, t0, t1, y0, args, recurrence=recurrence)
+    return out, None
+
+
+@_low_storage_step.def_bwd
+def _low_storage_step_bwd(residuals, grad_out, perturbed, vjp_arg, *, recurrence):
+    del residuals
+    terms, t0, t1, y0, args = vjp_arg
+    terms_perturbed, t0_perturbed, t1_perturbed, _, args_perturbed = perturbed
+    (
+        (y1, y_error, dense_info),
+        (
+            control,
+            ts,
+            stage_inputs_y,
+            stage_inputs_tmp,
+            tmp_final,
+        ),
+    ) = _run_low_storage_step(terms, t0, t1, y0, args, recurrence=recurrence)
+    grad_y1, grad_y_error, grad_dense_info = grad_out
+
+    diff_terms = eqx.filter(terms, eqx.is_inexact_array)
+    diff_args = eqx.filter(args, eqx.is_inexact_array)
+    grad_terms = jtu.tree_map(jnp.zeros_like, diff_terms)
+    grad_args = jtu.tree_map(jnp.zeros_like, diff_args)
+    grad_control = jtu.tree_map(
+        jnp.zeros_like, eqx.filter(control, eqx.is_inexact_array)
+    )
+    grad_t0 = jnp.zeros_like(t0)
+    grad_t1 = jnp.zeros_like(t1)
+
+    gdi = grad_dense_info or {}
+    grad_dense_y0 = _materialise_tree(dense_info["y0"], gdi.get("y0"))
+    grad_dense_y1 = _materialise_tree(dense_info["y1"], gdi.get("y1"))
+
+    grad_y = _materialise_tree(y1, grad_y1)
+    grad_y = eqx.apply_updates(grad_y, grad_dense_y1)
+    if recurrence.penultimate_stage_error:
+        grad_y_error = _materialise_tree(y_error, grad_y_error)
+        grad_y = eqx.apply_updates(grad_y, grad_y_error)
+
+    grad_tmp = jtu.tree_map(jnp.zeros_like, tmp_final)
+
+    for i in range(len(recurrence.B) - 1, 0, -1):
+        y_in = stage_inputs_y[i]
+        tmp_in = stage_inputs_tmp[i]
+        assert tmp_in is not None
+        t_stage = ts[i - 1]
+        a_i = recurrence.A[i - 1]
+        b_i = recurrence.B[i]
+        _, pullback = eqx.filter_vjp(
+            ft.partial(_later_stage, a_i=a_i, b_i=b_i),
+            terms,
+            t_stage,
+            y_in,
+            tmp_in,
+            args,
+            control,
+        )
+        dterms, d_t_stage, grad_y, grad_tmp, dargs, dcontrol = pullback(
+            (grad_y, grad_tmp)
+        )
+        if recurrence.penultimate_stage_error and i == len(recurrence.B) - 1:
+            grad_y = jtu.tree_map(lambda gy, ge: gy - ge, grad_y, grad_y_error)
+        if t0_perturbed or t1_perturbed:
+            c_i = recurrence.C[i]
+            if t0_perturbed:
+                grad_t0 = grad_t0 + (1.0 - c_i) * d_t_stage
+            if t1_perturbed:
+                grad_t1 = grad_t1 + c_i * d_t_stage
+        grad_terms = eqx.apply_updates(grad_terms, dterms)
+        grad_args = eqx.apply_updates(grad_args, dargs)
+        grad_control = eqx.apply_updates(grad_control, dcontrol)
+
+    _, pullback = eqx.filter_vjp(
+        ft.partial(_first_stage, b0=recurrence.B[0]), terms, t0, y0, args, control
+    )
+    dterms, d_t_stage, grad_y0, dargs, dcontrol = pullback((grad_y, grad_tmp))
+    if t0_perturbed:
+        grad_t0 = grad_t0 + d_t_stage
+    grad_terms = eqx.apply_updates(grad_terms, dterms)
+    grad_args = eqx.apply_updates(grad_args, dargs)
+    grad_control = eqx.apply_updates(grad_control, dcontrol)
+
+    if _any_perturbed(terms_perturbed):
+        _, pullback = eqx.filter_vjp(lambda terms_: terms_.contr(t0, t1), terms)
+        (dterms,) = pullback(grad_control)
+        grad_terms = eqx.apply_updates(grad_terms, dterms)
+    if t0_perturbed or t1_perturbed:
+        _, pullback = eqx.filter_vjp(
+            lambda t0_t1: terms.contr(t0_t1[0], t0_t1[1]), (t0, t1)
+        )
+        ((d_t0, d_t1),) = pullback(grad_control)
+        if t0_perturbed:
+            grad_t0 = grad_t0 + d_t0
+        if t1_perturbed:
+            grad_t1 = grad_t1 + d_t1
+    grad_y0 = eqx.apply_updates(grad_y0, grad_dense_y0)
+
+    return (
+        grad_terms if _any_perturbed(terms_perturbed) else _none_tree(diff_terms),
+        grad_t0 if t0_perturbed else None,
+        grad_t1 if t1_perturbed else None,
+        grad_y0,
+        grad_args if _any_perturbed(args_perturbed) else _none_tree(diff_args),
+    )
 
 
 @dataclass(frozen=True)
@@ -174,46 +360,10 @@ class LowStorageSolver(AbstractSolver):
         made_jump,
     ):
         del solver_state, made_jump
-        a = jnp.asarray(self.recurrence.A)
-        b = jnp.asarray(self.recurrence.B)
-        c = jnp.asarray(self.recurrence.C)
-
-        dt = t1 - t0
-        control = terms.contr(t0, t1)
-
-        # Precompute stage times outside the scan
-        ts = jnp.where(c[1:] == 1.0, t1, t0 + c[1:] * dt)
-
-        tmp = terms.vf_prod(t0, y0, args, control)
-        y1 = jtu.tree_map(lambda y, t: y + b[0] * t, y0, tmp)
-
-        def body_fun(carry, coeffs):
-            y, tmp = carry
-            a_i, b_i, ti = coeffs
-            tmp = jtu.tree_map(
-                lambda t, k: a_i * t + k, tmp, terms.vf_prod(ti, y, args, control)
-            )
-            y = jtu.tree_map(lambda yi, t: yi + b_i * t, y, tmp)
-            return (y, tmp), None
-
-        if self.recurrence.penultimate_stage_error:
-            # Run scan up to the penultimate stage, then do the final stage manually.
-            # This keeps the carry at true 2N (y, tmp) — no extra state copy needed.
-            (y_pen, tmp_pen), _ = lax.scan(
-                body_fun, (y1, tmp), (a[:-1], b[1:-1], ts[:-1])
-            )
-            tmp_pen = jtu.tree_map(
-                lambda t, k: a[-1] * t + k,
-                tmp_pen,
-                terms.vf_prod(ts[-1], y_pen, args, control),
-            )
-            y1 = jtu.tree_map(lambda yi, t: yi + b[-1] * t, y_pen, tmp_pen)
-            y_error = jtu.tree_map(lambda yf, yp: yf - yp, y1, y_pen)
-        else:
-            (y1, _), _ = lax.scan(body_fun, (y1, tmp), (a, b[1:], ts))
-            y_error = None
-
-        dense_info = dict(y0=y0, y1=y1)
+        y1, y_error, dense_info = _low_storage_step(
+            (terms, t0, t1, y0, args),
+            recurrence=self.recurrence,
+        )
         return y1, y_error, dense_info, None, RESULTS.successful
 
     def func(
