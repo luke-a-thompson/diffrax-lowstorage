@@ -77,12 +77,22 @@ def test_lowstorage_solver_order(solver_name, solver_cls):
             )
             assert out_fwd.ys is not None
             out_bwd = diffrax.diffeqsolve(
-                term, solver, t1, t0, -float(dt), float(out_fwd.ys[0]), saveat=diffrax.SaveAt(t1=True)
+                term,
+                solver,
+                t1,
+                t0,
+                -float(dt),
+                float(out_fwd.ys[0]),
+                saveat=diffrax.SaveAt(t1=True),
             )
             assert out_bwd.ys is not None
             rt_errors.append(float(jnp.abs(out_bwd.ys[0] - y0)))
-        slope_rt = float(jnp.polyfit(jnp.log(dts_rt), jnp.log(jnp.array(rt_errors)), 1)[0])
-        print(f"{solver_name} roundtrip: expected={expected_rt_order}, measured={slope_rt:.2f}")
+        slope_rt = float(
+            jnp.polyfit(jnp.log(dts_rt), jnp.log(jnp.array(rt_errors)), 1)[0]
+        )
+        print(
+            f"{solver_name} roundtrip: expected={expected_rt_order}, measured={slope_rt:.2f}"
+        )
         assert slope_rt >= expected_rt_order * 0.9, (
             f"Round-trip: expected order ~{expected_rt_order}, got slope {slope_rt:.2f}"
         )
