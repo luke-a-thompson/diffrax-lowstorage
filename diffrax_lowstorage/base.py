@@ -35,13 +35,7 @@ def _none_tree(tree):
     return jtu.tree_map(lambda _: None, tree)
 
 
-def _first_stage(terms, t, y, args, control, *, b0):
-    tmp = terms.vf_prod(t, y, args, control)
-    y_next = jtu.tree_map(lambda yi, tmpi: yi + b0 * tmpi, y, tmp)
-    return y_next, tmp
-
-
-def _later_stage(terms, t, y, tmp, args, control, *, a_i, b_i):
+def _stage(terms, t, y, tmp, args, control, *, a_i, b_i):
     k = terms.vf_prod(t, y, args, control)
     tmp_next = jtu.tree_map(lambda tmpi, ki: a_i * tmpi + ki, tmp, k)
     y_next = jtu.tree_map(lambda yi, tmpi: yi + b_i * tmpi, y, tmp_next)
@@ -57,14 +51,17 @@ def _run_low_storage_step(terms, t0, t1, y0, args, *, recurrence):
     control = terms.contr(t0, t1)
     ts = jnp.where(c[1:] == 1.0, t1, t0 + c[1:] * dt)
 
-    stage_inputs_y = [y0]
-    stage_inputs_tmp = [None]
+    stage_inputs_y = []
+    stage_inputs_tmp = []
 
-    y, tmp = _first_stage(terms, t0, y0, args, control, b0=b[0])
-    for i, (a_i, b_i, t_stage) in enumerate(zip(a, b[1:], ts), start=1):
+    y = y0
+    tmp = jtu.tree_map(jnp.zeros_like, y0)
+    for i in range(len(recurrence.B)):
         stage_inputs_y.append(y)
         stage_inputs_tmp.append(tmp)
-        y, tmp = _later_stage(terms, t_stage, y, tmp, args, control, a_i=a_i, b_i=b_i)
+        a_i = 0.0 if i == 0 else a[i - 1]
+        t_stage = t0 if i == 0 else ts[i - 1]
+        y, tmp = _stage(terms, t_stage, y, tmp, args, control, a_i=a_i, b_i=b[i])
 
     if recurrence.penultimate_stage_error:
         y_error = jtu.tree_map(lambda y1i, ypeni: y1i - ypeni, y, stage_inputs_y[-1])
@@ -101,7 +98,7 @@ def _low_storage_step_bwd(residuals, grad_out, perturbed, vjp_arg, *, recurrence
     terms, t0, t1, y0, args = vjp_arg
     terms_perturbed, t0_perturbed, t1_perturbed, _, args_perturbed = perturbed
     (
-        (y1, y_error, dense_info),
+        (y1, y_error, _),
         (
             control,
             ts,
@@ -123,8 +120,8 @@ def _low_storage_step_bwd(residuals, grad_out, perturbed, vjp_arg, *, recurrence
     grad_t1 = jnp.zeros_like(t1)
 
     gdi = grad_dense_info or {}
-    grad_dense_y0 = _materialise_tree(dense_info["y0"], gdi.get("y0"))
-    grad_dense_y1 = _materialise_tree(dense_info["y1"], gdi.get("y1"))
+    grad_dense_y0 = _materialise_tree(y0, gdi.get("y0"))
+    grad_dense_y1 = _materialise_tree(y1, gdi.get("y1"))
 
     grad_y = _materialise_tree(y1, grad_y1)
     grad_y = eqx.apply_updates(grad_y, grad_dense_y1)
@@ -134,15 +131,14 @@ def _low_storage_step_bwd(residuals, grad_out, perturbed, vjp_arg, *, recurrence
 
     grad_tmp = jtu.tree_map(jnp.zeros_like, tmp_final)
 
-    for i in range(len(recurrence.B) - 1, 0, -1):
+    for i in reversed(range(len(recurrence.B))):
         y_in = stage_inputs_y[i]
         tmp_in = stage_inputs_tmp[i]
-        assert tmp_in is not None
-        t_stage = ts[i - 1]
-        a_i = recurrence.A[i - 1]
+        t_stage = t0 if i == 0 else ts[i - 1]
+        a_i = 0.0 if i == 0 else recurrence.A[i - 1]
         b_i = recurrence.B[i]
         _, pullback = eqx.filter_vjp(
-            ft.partial(_later_stage, a_i=a_i, b_i=b_i),
+            ft.partial(_stage, a_i=a_i, b_i=b_i),
             terms,
             t_stage,
             y_in,
@@ -165,15 +161,7 @@ def _low_storage_step_bwd(residuals, grad_out, perturbed, vjp_arg, *, recurrence
         grad_args = eqx.apply_updates(grad_args, dargs)
         grad_control = eqx.apply_updates(grad_control, dcontrol)
 
-    _, pullback = eqx.filter_vjp(
-        ft.partial(_first_stage, b0=recurrence.B[0]), terms, t0, y0, args, control
-    )
-    dterms, d_t_stage, grad_y0, dargs, dcontrol = pullback((grad_y, grad_tmp))
-    if t0_perturbed:
-        grad_t0 = grad_t0 + d_t_stage
-    grad_terms = eqx.apply_updates(grad_terms, dterms)
-    grad_args = eqx.apply_updates(grad_args, dargs)
-    grad_control = eqx.apply_updates(grad_control, dcontrol)
+    grad_y0 = grad_y
 
     if _any_perturbed(terms_perturbed):
         _, pullback = eqx.filter_vjp(lambda terms_: terms_.contr(t0, t1), terms)
