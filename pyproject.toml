@@ -7,9 +7,9 @@ name = "diffrax-lowstorage"
 version = "0.1.0"
 description = "Low-storage Runge-Kutta Methods for Diffrax"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
-    "jax>=0.9.1",
+    "jax[cuda]>=0.4.38",
     "diffrax>=0.7.1",
 ]
 
@@ -19,6 +19,13 @@ diffrax = { git = "https://github.com/sammccallum/diffrax", rev = "aeb1335b5a627
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "matplotlib",
+    "fbm",
+]
+
+[tool.uv]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
 
 [tool.uv.build-backend]
