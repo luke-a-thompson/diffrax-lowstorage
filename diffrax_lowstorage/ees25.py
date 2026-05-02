@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import ClassVar, override
 
 import numpy as np
-from diffrax import RESULTS, AbstractReversibleSolver, AbstractTerm
+from diffrax import (
+    RESULTS,
+    AbstractReversibleSolver,
+    AbstractStratonovichSolver,
+    AbstractTerm,
+)
 from diffrax._custom_types import Args, BoolScalarLike, DenseInfo, RealScalarLike, Y
 from jaxtyping import PyTree
 
@@ -18,11 +23,12 @@ _ees25_recurrence = LowStorageRecurrence(
 _SolverState = Y
 
 
-class EES25(LowStorageSolver, AbstractReversibleSolver):
+class EES25(LowStorageSolver, AbstractReversibleSolver, AbstractStratonovichSolver):
     """2N-EES(2,5;1/4) solver.
 
     Reference:
-        Unpublished work."""
+        Unpublished work.
+    """
 
     recurrence: ClassVar[LowStorageRecurrence] = _ees25_recurrence
 
@@ -30,6 +36,10 @@ class EES25(LowStorageSolver, AbstractReversibleSolver):
     def order(self, terms):
         del terms
         return 2
+
+    def strong_order(self, terms):
+        del terms
+        return 0.5
 
     def antisymmetric_order(self, terms):
         del terms
