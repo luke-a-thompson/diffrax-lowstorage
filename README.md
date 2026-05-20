@@ -28,7 +28,7 @@
 
 ```python
 import diffrax
-from diffrax_lowstorage import YRK135
+from diffrax_lowstorage import BWRRK53
 
 sol = diffrax.diffeqsolve(
     diffrax.ODETerm(lambda t, y, args: -y),
