@@ -49,6 +49,12 @@ def _measure_order(term, solver, t0, t1, y0, exact, dts):
     return float(jnp.polyfit(log_dts, log_errs, 1)[0])
 
 
+def _order_test_dts(solver_name):
+    if solver_name in {"shrk64", "shrk2n"}:
+        return jnp.array([0.08, 0.04, 0.02, 0.01])
+    return jnp.array([0.025, 0.0125, 0.00625, 0.003125])
+
+
 @pytest.mark.parametrize(("solver_name", "solver_cls"), SOLVERS)
 def test_lowstorage_solver_order(solver_name, solver_cls):
     term = diffrax.ODETerm(lambda t, y, args: -10 * y**3)
@@ -57,7 +63,7 @@ def test_lowstorage_solver_order(solver_name, solver_cls):
 
     t0, t1, y0 = 0.0, 1.0, 1.0
     exact_t1 = 1.0 / jnp.sqrt(1.0 + 20.0 * t1)
-    dts = jnp.array([0.025, 0.0125, 0.00625, 0.003125])
+    dts = _order_test_dts(solver_name)
 
     slope = _measure_order(term, solver, t0, t1, y0, exact_t1, dts)
     print(f"\n{solver_name} forward:  expected={expected_order}, measured={slope:.2f}")

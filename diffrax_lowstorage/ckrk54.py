@@ -25,7 +25,9 @@ _ckrk54_tableau = LowStorageRecurrence(
 
 
 class CKRK54(LowStorageSolver):
-    """5-stage, 4td-order Williamson 2N low-storage RK method.
+    """5-stage, 4th-order Williamson 2N low-storage RK method.
+
+    Corresponds to: CarpenterKennedy2N54 in Diffeq.jl.
 
     Reference:
         Carpenter, Mark H., and Christopher A. Kennedy. 1994. Fourth-Order 2N-Storage Runge-Kutta Schemes. NASA-TM-109112. https://ntrs.nasa.gov/citations/19940028444.

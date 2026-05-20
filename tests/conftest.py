@@ -7,22 +7,50 @@ import lineax
 from diffrax import Bosh3, Heun, MultiTerm, ODETerm, ReversibleHeun
 from jaxtyping import PyTree
 
-from diffrax_lowstorage import BWRRK33, BWRRK53, CKRK54, EES25, EES27, YRK135
+from diffrax_lowstorage import (
+    BBBRKNL64,
+    BPRKO52,
+    BWRRK33,
+    BWRRK53,
+    CKRK54,
+    EES25,
+    EES27,
+    NDBRK124,
+    NDBRK134,
+    NDBRK144,
+    SHRK2N,
+    SHRK52,
+    SHRK64,
+    TSRKC73,
+    TSRKC84,
+    TSRKF84,
+    YRK135,
+)
 
-NO_ERROR_SOLVERS = {
+NO_ERROR_SOLVERS = (
     ("bwrrk33", BWRRK33),
     ("yrk135", YRK135),
-    ("ckrk53", CKRK54),
+    ("ckrk54", CKRK54),
+    ("bprko52", BPRKO52),
+    ("shrk52", SHRK52),
+    ("tsrkc73", TSRKC73),
+    ("bbbrknl64", BBBRKNL64),
+    ("shrk64", SHRK64),
+    ("tsrkc84", TSRKC84),
+    ("tsrkf84", TSRKF84),
+    ("ndbrk124", NDBRK124),
+    ("ndbrk134", NDBRK134),
+    ("ndbrk144", NDBRK144),
+    ("shrk2n", SHRK2N),
     ("ees25", EES25),
     ("ees27", EES27),
-    ("reversible_heun", ReversibleHeun),
-}
+)
 
-PENULTIMATE_ERROR_SOLVERS = {
+PENULTIMATE_ERROR_SOLVERS = (
     ("bwrrk53", BWRRK53),
-}
+)
 
-SOLVERS = NO_ERROR_SOLVERS | PENULTIMATE_ERROR_SOLVERS
+SOLVERS = NO_ERROR_SOLVERS + PENULTIMATE_ERROR_SOLVERS
 
 
 # A small MLP as the ODE drift. Realistic per-stage activation retention cost
@@ -105,5 +133,6 @@ BENCH_CASES = [
 BENCH_SOLVERS = [
     ("bosh3", Bosh3),
     ("heun", Heun),
+    ("reversible_heun", ReversibleHeun),
     *SOLVERS,
 ]
