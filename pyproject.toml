@@ -1,17 +1,52 @@
 [build-system]
-requires = ["uv_build>=0.10.9,<0.11.0"]
+requires = ["uv_build>=0.10.9,<0.12.0"]
 build-backend = "uv_build"
 
 [project]
 name = "diffrax-lowstorage"
 version = "0.1.0"
-description = "Low-storage Runge-Kutta Methods for Diffrax"
+description = "2N low-storage Runge-Kutta solvers for Diffrax"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Luke Thompson", email = "luke.thompson@sydney.edu.au" },
+]
+keywords = [
+    "differential equations",
+    "diffrax",
+    "jax",
+    "low-storage",
+    "numerical analysis",
+    "ordinary differential equations",
+    "runge-kutta",
+    "scientific computing",
+    "stochastic differential equations",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
 dependencies = [
-    "jax[cuda]>=0.4.38",
+    "jax>=0.4.38",
     "diffrax>=0.7.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/luke-a-thompson/diffrax-lowstorage"
+Repository = "https://github.com/luke-a-thompson/diffrax-lowstorage"
+Issues = "https://github.com/luke-a-thompson/diffrax-lowstorage/issues"
 
 [tool.uv.sources]
 diffrax = { git = "https://github.com/sammccallum/diffrax", rev = "aeb1335b5a6278e85a270231e0f97b8db4453ae6" }
@@ -21,11 +56,6 @@ dev = [
     "pytest",
     "matplotlib",
     "fbm",
-]
-
-[tool.uv]
-required-environments = [
-    "sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
 
 [tool.uv.build-backend]
