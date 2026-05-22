@@ -19,6 +19,25 @@ class BWRRK53(LowStorageSolver):
     """5-stage, 3rd-order Williamson 2N low-storage RK method.
     Penultimate stage (the state before the final update) is 2nd-order accurate at t+h,
     so you get an embedded (3,2) pair with error ≈ y_final - y_penultimate.
+
+    ??? Reference
+
+        ```bibtex
+        @article{Williamson1980,
+          title = {Low-storage Runge-Kutta schemes},
+          volume = {35},
+          ISSN = {0021-9991},
+          url = {http://dx.doi.org/10.1016/0021-9991(80)90033-9},
+          DOI = {10.1016/0021-9991(80)90033-9},
+          number = {1},
+          journal = {Journal of Computational Physics},
+          publisher = {Elsevier BV},
+          author = {Williamson,  J. H.},
+          year = {1980},
+          month = Mar,
+          pages = {48–56}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _bwrrk53_tableau

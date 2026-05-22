@@ -38,9 +38,28 @@ _bbbrknl64_recurrence = LowStorageRecurrence(
 
 
 class BBBRKNL64(LowStorageSolver):
-    """6-stage, 4th-order nonlinear 2N RK method by Berland, Bogey, and Bailly.
+    """6-stage, 4th-order, low-dissipation, low-dispersion nonlinear 2N RK method by Berland, Bogey, and Bailly.
 
     Corresponds to: RK46NL in Diffeq.jl.
+
+    ??? Reference
+
+        ```bibtex
+        @article{Berland2006,
+          title = {Low-dissipation and low-dispersion fourth-order Runge–Kutta algorithm},
+          volume = {35},
+          ISSN = {0045-7930},
+          url = {http://dx.doi.org/10.1016/j.compfluid.2005.04.003},
+          DOI = {10.1016/j.compfluid.2005.04.003},
+          number = {10},
+          journal = {Computers &amp; Fluids},
+          publisher = {Elsevier BV},
+          author = {Berland,  Julien and Bogey,  Christophe and Bailly,  Christophe},
+          year = {2006},
+          month = Dec,
+          pages = {1459–1463}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _bbbrknl64_recurrence

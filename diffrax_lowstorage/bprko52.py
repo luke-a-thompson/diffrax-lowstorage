@@ -15,6 +15,25 @@ class BPRKO52(LowStorageSolver):
     """5-stage, 2nd-order 2N low-storage optimized RK method.
 
     Corresponds to: ORK256 in Diffeq.jl.
+
+    ??? Reference
+
+        ```bibtex
+        @article{Bernardini2009,
+          title = {A general strategy for the optimization of Runge–Kutta schemes for wave propagation phenomena},
+          volume = {228},
+          ISSN = {0021-9991},
+          url = {http://dx.doi.org/10.1016/j.jcp.2009.02.032},
+          DOI = {10.1016/j.jcp.2009.02.032},
+          number = {11},
+          journal = {Journal of Computational Physics},
+          publisher = {Elsevier BV},
+          author = {Bernardini,  Matteo and Pirozzoli,  Sergio},
+          year = {2009},
+          month = Jun,
+          pages = {4182–4199}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _bprko52_recurrence

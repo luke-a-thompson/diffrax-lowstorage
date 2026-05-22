@@ -59,6 +59,25 @@ class NDBRK124(LowStorageSolver):
     """12-stage, 4th-order 2N RK method by Niegemann, Diehl, and Busch.
 
     Corresponds to: NDBLSRK124 in Diffeq.jl.
+
+    ??? Reference
+
+        ```bibtex
+        @article{Niegemann2012,
+          title = {Efficient low-storage Runge–Kutta schemes with optimized stability regions},
+          volume = {231},
+          ISSN = {0021-9991},
+          url = {http://dx.doi.org/10.1016/j.jcp.2011.09.003},
+          DOI = {10.1016/j.jcp.2011.09.003},
+          number = {2},
+          journal = {Journal of Computational Physics},
+          publisher = {Elsevier BV},
+          author = {Niegemann,  Jens and Diehl,  Richard and Busch,  Kurt},
+          year = {2012},
+          month = Jan,
+          pages = {364–372}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _ndbrk124_recurrence

@@ -15,8 +15,24 @@ _bwrrk33_tableau = LowStorageRecurrence(
 class BWRRK33(LowStorageSolver):
     """3-stage, 3rd-order 2N low-storage RK method in Williamson form.
 
-    Reference:
-        Williamson, J. H. 1980. “Low-Storage Runge-Kutta Schemes.” Journal of Computational Physics 35 (1): 48–56. https://doi.org/10.1016/0021-9991(80)90033-9.
+    ??? Reference
+
+        ```bibtex
+        @article{Williamson1980,
+          title = {Low-storage Runge-Kutta schemes},
+          volume = {35},
+          ISSN = {0021-9991},
+          url = {http://dx.doi.org/10.1016/0021-9991(80)90033-9},
+          DOI = {10.1016/0021-9991(80)90033-9},
+          number = {1},
+          journal = {Journal of Computational Physics},
+          publisher = {Elsevier BV},
+          author = {Williamson,  J. H.},
+          year = {1980},
+          month = Mar,
+          pages = {48–56}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _bwrrk33_tableau

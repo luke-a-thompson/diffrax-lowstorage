@@ -24,6 +24,25 @@ class SHRK2N(AbstractSolver):
     """Alternating 2N RK method by Stanescu and Habashi.
 
     Corresponds to: SHLDDRK_2N in Diffeq.jl.
+
+    ??? Reference
+
+        ```bibtex
+        @article{Stanescu1998,
+          title = {2N-Storage Low Dissipation and Dispersion Runge-Kutta Schemes for Computational Acoustics},
+          volume = {143},
+          ISSN = {0021-9991},
+          url = {http://dx.doi.org/10.1006/jcph.1998.5986},
+          DOI = {10.1006/jcph.1998.5986},
+          number = {2},
+          journal = {Journal of Computational Physics},
+          publisher = {Elsevier BV},
+          author = {Stanescu,  D. and Habashi,  W. G.},
+          year = {1998},
+          month = Jul,
+          pages = {674–681}
+        }
+        ```
     """
 
     term_structure: ClassVar = AbstractTerm

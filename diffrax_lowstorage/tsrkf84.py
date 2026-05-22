@@ -47,6 +47,25 @@ class TSRKF84(LowStorageSolver):
     """8-stage, 4th-order 2N RK-F method by Toulorge and Desmet.
 
     Corresponds to: DGLDDRK84_F in Diffeq.jl.
+
+    ??? Reference
+
+        ```bibtex
+        @article{Toulorge2012,
+          title = {Optimal Runge–Kutta schemes for discontinuous Galerkin space discretizations applied to wave propagation problems},
+          volume = {231},
+          ISSN = {0021-9991},
+          url = {http://dx.doi.org/10.1016/j.jcp.2011.11.024},
+          DOI = {10.1016/j.jcp.2011.11.024},
+          number = {4},
+          journal = {Journal of Computational Physics},
+          publisher = {Elsevier BV},
+          author = {Toulorge,  T. and Desmet,  W.},
+          year = {2012},
+          month = Feb,
+          pages = {2067–2091}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _tsrkf84_recurrence

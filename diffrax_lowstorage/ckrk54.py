@@ -28,10 +28,21 @@ class CKRK54(LowStorageSolver):
     """5-stage, 4th-order Williamson 2N low-storage RK method.
 
     Corresponds to: CarpenterKennedy2N54 in Diffeq.jl.
+    Coefficients are from Table 3, Solution 3.
 
-    Reference:
-        Carpenter, Mark H., and Christopher A. Kennedy. 1994. Fourth-Order 2N-Storage Runge-Kutta Schemes. NASA-TM-109112. https://ntrs.nasa.gov/citations/19940028444.
-        Table 3, Solution 3
+    ??? Reference
+
+        ```bibtex
+        @techreport{CarpenterKennedy1994,
+          title = {Fourth-order 2N-storage Runge-Kutta schemes},
+          author = {Carpenter,  Mark H. and Kennedy,  Christopher A.},
+          institution = {NASA Langley Research Center},
+          number = {NASA-TM-109112},
+          year = {1994},
+          month = Jun,
+          url = {https://ntrs.nasa.gov/citations/19940028444}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _ckrk54_tableau

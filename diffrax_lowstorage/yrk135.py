@@ -66,11 +66,26 @@ class YRK135(LowStorageSolver):
 
     Achieves 8th-order accuracy for autonomous linear differential equations,
     and 5th-order accuracy for time-variant or nonlinear differential equations.
+    Coefficients are from Table II.
 
-    Reference:
-        Yan, Yun-an. "Low-Storage Runge-Kutta Method for Simulating Time-Dependent
-        Quantum Dynamics." Chinese Journal of Chemical Physics 30, no. 3 (2017):
-        277–86. https://doi.org/10.1063/1674-0068/30/cjcp1703025. Table II.
+    ??? Reference
+
+        ```bibtex
+        @article{Yan2017,
+          title = {Low-Storage Runge-Kutta Method for Simulating Time-Dependent Quantum Dynamics},
+          volume = {30},
+          ISSN = {2327-2244},
+          url = {http://dx.doi.org/10.1063/1674-0068/30/cjcp1703025},
+          DOI = {10.1063/1674-0068/30/cjcp1703025},
+          number = {3},
+          journal = {Chinese Journal of Chemical Physics},
+          publisher = {AIP Publishing},
+          author = {Yan,  Yun-an},
+          year = {2017},
+          month = Jun,
+          pages = {277–286}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _yrk135_tableau

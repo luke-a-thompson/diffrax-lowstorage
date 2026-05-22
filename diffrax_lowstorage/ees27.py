@@ -27,8 +27,22 @@ _SolverState = Y
 class EES27(LowStorageSolver, AbstractReversibleSolver, AbstractStratonovichSolver):
     """2N-EES(2,7;(1/4)) solver.
 
-    Reference:
-        Unpublished work.
+    O(1)-reversible and converges to the Stratonovich solution.
+
+    ??? Reference
+
+        ```bibtex
+        @misc{Shmelev2026,
+          title = {Explicit and Effectively Symmetric Schemes for Neural SDEs on Lie Groups},
+          author = {Shmelev,  Daniil and Thompson,  Luke and Salvi,  Cristopher},
+          year = {2026},
+          eprint = {2509.20599},
+          archivePrefix = {arXiv},
+          primaryClass = {cs.LG},
+          doi = {10.48550/arXiv.2509.20599},
+          url = {https://arxiv.org/abs/2509.20599}
+        }
+        ```
     """
 
     recurrence: ClassVar[LowStorageRecurrence] = _ees27_recurrence
