@@ -8,64 +8,66 @@
         stroke-width: .8px;
       }
 
-      .st0, .st1, .st2 {
-        fill: none;
-      }
-
-      .st0, .st3, .st4, .st5, .st6, .st7 {
+      .st0, .st1, .st2, .st3, .st4 {
         isolation: isolate;
       }
 
-      .st0, .st2 {
+      .st0, .st5, .st6 {
+        fill: none;
+      }
+
+      .st0, .st6 {
         stroke: #a8a298;
       }
 
       .st1 {
+        fill: #7c766c;
+      }
+
+      .st1, .st4 {
+        font-family: Georgia-Italic, Georgia;
+        font-size: 34px;
+        font-style: italic;
+      }
+
+      .st5 {
         stroke: #0659ac;
         stroke-miterlimit: 10;
       }
 
-      .st1, .st2 {
+      .st5, .st6 {
         stroke-linecap: round;
         stroke-width: 1.8px;
       }
 
-      .st3, .st5, .st7 {
-        font-family: Georgia-Italic, Georgia;
-        font-size: 34px;
-        font-style: italic;
-        letter-spacing: 0em;
-      }
-
-      .st3, .st7 {
-        fill: #7c766c;
-      }
-
-      .st5 {
-        fill: #f3efe7;
-      }
-
-      .st6 {
+      .st3 {
+        fill: #fff;
         font-family: CourierNewPS-BoldMT, 'Courier New';
         font-size: 9px;
         font-weight: 700;
         letter-spacing: .04em;
       }
 
-      .st7 {
-        opacity: .7;
+      .st4 {
+        fill: #f3efe7;
       }
     </style>
   </defs>
-  <g>
-    <path class="st0" d="M18,16v32h50"/>
-    <line class="st2" x1="20" y1="46" x2="66" y2="20"/>
-    <line class="st1" x1="20" y1="38" x2="66" y2="38"/>
-    <text class="st6" transform="translate(54.35 36.27)"><tspan x="0" y="0">2N</tspan></text>
+  <path class="st0" d="M18,16v32h50"/>
+  <line class="st6" x1="20" y1="46" x2="66" y2="20"/>
+  <line class="st5" x1="20" y1="38" x2="66" y2="38"/>
+  <g class="st2">
+    <text class="st3" transform="translate(54.35 36.27)"><tspan x="0" y="0">2N</tspan></text>
   </g>
-  <g class="st4">
-    <text class="st3" transform="translate(84 44)"><tspan x="0" y="0">diffrax</tspan></text>
-    <text class="st7" transform="translate(187 44)"><tspan x="0" y="0">‑</tspan></text>
-    <text class="st5" transform="translate(202 44)"><tspan x="0" y="0">lowstorage</tspan></text>
+  <g class="st2">
+    <g class="st2">
+      <text class="st1" transform="translate(84 44)"><tspan x="0" y="0">diffrax</tspan></text>
+    </g>
+    <g class="st2">
+      <text class="st1" transform="translate(187 44)"><tspan x="0" y="0">‑</tspan></text>
+    </g>
+    <g class="st2">
+      <text class="st4" transform="translate(202 44)"><tspan x="0" y="0">lowstorage</tspan></text>
+    </g>
   </g>
 </svg>
