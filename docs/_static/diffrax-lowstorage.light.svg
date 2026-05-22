@@ -62,6 +62,8 @@
   <line class="st1" x1="20" y1="38" x2="66" y2="38"/>
   <text class="st6" transform="translate(54.35 36.27)"><tspan x="0" y="0">2N</tspan></text>
   <g class="st3">
-    <text transform="translate(84 44)"><tspan class="st5">diffrax</tspan><tspan class="st7">‑</tspan><tspan class="st4">lowstorage</tspan></text>
+    <text class="st5" transform="translate(84 44)"><tspan x="0" y="0">diffrax</tspan></text>
+    <text class="st7" transform="translate(187 44)"><tspan x="0" y="0">‑</tspan></text>
+    <text class="st4" transform="translate(202 44)"><tspan x="0" y="0">lowstorage</tspan></text>
   </g>
 </svg>
