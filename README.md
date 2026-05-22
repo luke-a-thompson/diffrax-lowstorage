@@ -2,7 +2,7 @@
   <picture>
     <source srcset="https://raw.githubusercontent.com/luke-a-thompson/diffrax-lowstorage/main/docs/_static/diffrax-lowstorage.dark.svg" media="(prefers-color-scheme: dark)">
     <source srcset="https://raw.githubusercontent.com/luke-a-thompson/diffrax-lowstorage/main/docs/_static/diffrax-lowstorage.light.svg" media="(prefers-color-scheme: light)">
-    <img src="https://raw.githubusercontent.com/luke-a-thompson/diffrax-lowstorage/main/docs/_static/diffrax-lowstorage.light.svg" width="350" alt="Logo">
+    <img src="https://raw.githubusercontent.com/luke-a-thompson/diffrax-lowstorage/main/docs/_static/diffrax-lowstorage.light.svg" width="520" alt="Logo">
   </picture>
 </p>
 
