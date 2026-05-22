@@ -1,15 +1,69 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 64" width="420" height="64" role="img" aria-label="diffrax-lowstorage">
-  <title>diffrax-lowstorage</title>
-  <defs></defs>
-  
-  <g transform="translate(12, 10)">
-    <path d="M 6 6 L 6 38 L 56 38" fill="none" stroke="#a8a298" stroke-width="0.8" opacity="0.6"></path>
-    <line x1="8" y1="36" x2="54" y2="10" stroke="#a8a298" stroke-width="1.8" stroke-linecap="round"></line>
-    <line x1="8" y1="28" x2="54" y2="28" stroke="oklch(0.50 0.13 250)" stroke-width="2.4" stroke-linecap="round"></line>
-    <text x="40" y="24" font-family="&#39;JetBrains Mono&#39;, ui-monospace, monospace" font-size="9" font-weight="600" letter-spacing="0.04em" fill="oklch(0.50 0.13 250)">2N</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 420 64">
+  <!-- Generator: Adobe Illustrator 30.4.0, SVG Export Plug-In . SVG Version: 2.1.4 Build 226)  -->
+  <defs>
+    <style>
+      .st0 {
+        opacity: .6;
+        stroke-width: .8px;
+      }
+
+      .st0, .st1, .st2 {
+        fill: none;
+      }
+
+      .st0, .st2 {
+        stroke: #a8a298;
+      }
+
+      .st0, .st3, .st4, .st5, .st6, .st7 {
+        isolation: isolate;
+      }
+
+      .st1 {
+        stroke: #0659ac;
+        stroke-miterlimit: 10;
+      }
+
+      .st1, .st2 {
+        stroke-linecap: round;
+        stroke-width: 1.8px;
+      }
+
+      .st4 {
+        fill: #171612;
+      }
+
+      .st4, .st5, .st7 {
+        font-family: Georgia-Italic, Georgia;
+        font-size: 34px;
+        font-style: italic;
+        letter-spacing: 0em;
+      }
+
+      .st5, .st7 {
+        fill: #a8a298;
+      }
+
+      .st6 {
+        font-family: CourierNewPS-BoldMT, 'Courier New';
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: .04em;
+      }
+
+      .st7 {
+        opacity: .7;
+      }
+    </style>
+  </defs>
+  <path class="st0" d="M18,16v32h50"/>
+  <line class="st2" x1="20" y1="46" x2="66" y2="20"/>
+  <line class="st1" x1="20" y1="38" x2="66" y2="38"/>
+  <text class="st6" transform="translate(54.35 36.27)"><tspan x="0" y="0">2N</tspan></text>
+  <g class="st3">
+    <text class="st5" transform="translate(84 44)"><tspan x="0" y="0">diffrax</tspan></text>
+    <text class="st7" transform="translate(185.83 44)"><tspan x="0" y="0">‑</tspan></text>
+    <text class="st4" transform="translate(219.49 44)"><tspan x="0" y="0">lowstorage</tspan></text>
   </g>
-  
-  <text x="84" y="44" font-family="&#39;Newsreader&#39;, Georgia, serif" font-style="italic" font-weight="500" font-size="34" letter-spacing="-0.01em" fill="#171612">
-    <tspan fill="#a8a298" font-weight="400">diffrax</tspan><tspan fill="#a8a298" font-weight="400" opacity="0.7">‑</tspan><tspan>lowstorage</tspan>
-  </text>
 </svg>
