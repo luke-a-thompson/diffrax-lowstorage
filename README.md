@@ -8,7 +8,7 @@
 
 <h2 align='center'>2N ODE integrators for Diffrax.</h2>
 
-Diffrax-lowstorage provides memory-efficient ODE integrators for [Diffrax](https://github.com/patrick-kidger/diffrax). Its Williamson-form methods use custom forward and backward passes, so only two state vectors are needed regardless of stage count -- ideal for large PDE discretisations, huge GPU batches of ODEs, and neural ODE/SDE workloads with EES methods for $\mathcal{O}(1)$ backpropagation.
+Diffrax-lowstorage provides memory-efficient ODE integrators for [Diffrax](https://github.com/patrick-kidger/diffrax). Its Williamson-form methods use custom forward and backward passes, so only two state vectors are needed regardless of stage count. 2N methods are ideal for large PDE discretisations, huge GPU batches of ODEs, and neural ODE/SDE workloads with EES methods for $\mathcal{O}(1)$ backpropagation.
 
 ## Solvers
 
