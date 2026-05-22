@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 64" width="420" height="64" role="img" aria-label="diffrax-lowstorage">
+  <title>diffrax-lowstorage</title>
+  <defs></defs>
+  
+  <g transform="translate(12, 10)">
+    <path d="M 6 6 L 6 38 L 56 38" fill="none" stroke="#7c766c" stroke-width="0.8" opacity="0.6"></path>
+    <line x1="8" y1="36" x2="54" y2="10" stroke="#7c766c" stroke-width="1.8" stroke-linecap="round"></line>
+    <line x1="8" y1="28" x2="54" y2="28" stroke="oklch(0.72 0.14 250)" stroke-width="2.4" stroke-linecap="round"></line>
+    <text x="40" y="24" font-family="&#39;JetBrains Mono&#39;, ui-monospace, monospace" font-size="9" font-weight="600" letter-spacing="0.04em" fill="oklch(0.72 0.14 250)">2N</text>
+  </g>
+  
+  <text x="84" y="44" font-family="&#39;Newsreader&#39;, Georgia, serif" font-style="italic" font-weight="500" font-size="34" letter-spacing="-0.01em" fill="#f3efe7">
+    <tspan fill="#7c766c" font-weight="400">diffrax</tspan><tspan fill="#7c766c" font-weight="400" opacity="0.7">‑</tspan><tspan>lowstorage</tspan>
+  </text>
+</svg>

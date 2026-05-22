@@ -1,6 +1,14 @@
-# diffrax-lowstorage
+<p align="center">
+  <picture>
+    <source srcset="https://raw.githubusercontent.com/luke-a-thompson/diffrax-lowstorage/main/docs/_static/diffrax-lowstorage.dark.svg" media="(prefers-color-scheme: dark)">
+    <source srcset="https://raw.githubusercontent.com/luke-a-thompson/diffrax-lowstorage/main/docs/_static/diffrax-lowstorage.light.svg" media="(prefers-color-scheme: light)">
+    <img src="https://raw.githubusercontent.com/luke-a-thompson/diffrax-lowstorage/main/docs/_static/diffrax-lowstorage.light.svg" width="350" alt="Logo">
+  </picture>
+</p>
 
-2N low-storage Runge-Kutta solvers for [Diffrax](https://github.com/patrick-kidger/diffrax), implemented in the Williamson form. Only two state vectors are needed regardless of stage count.
+<h2 align='center'>2N ODE integrators for Diffrax.</h2>
+
+Diffrax-lowstorage provides memory-efficient ODE integrators for [Diffrax](https://github.com/patrick-kidger/diffrax). Its Williamson-form methods use custom forward and backward passes, so only two state vectors are needed regardless of stage count -- ideal for large PDE discretisations, huge GPU batches of ODEs, and neural ODE/SDE workloads with EES methods for $\mathcal{O}(1)$ backpropagation.
 
 ## Solvers
 
@@ -40,7 +48,7 @@ sol = diffrax.diffeqsolve(
 ## Commutator-Free Conversion
 
 If you want a commutator-free equivalent, call `to_commutator_free()` on one of the
-low-storage solvers. This uses [georax](https://github.com/luke-a-thompson/georax)
+low-storage solvers. This uses [diffrax-lowstorage](https://github.com/luke-a-thompson/diffrax-lowstorage)
 to build the matching commutator-free solver.
 
 ## Install
