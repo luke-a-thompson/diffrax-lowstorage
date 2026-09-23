@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools as ft
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import ClassVar, TypeAlias
@@ -19,30 +18,20 @@ from diffrax import (
 _SolverState: TypeAlias = None
 
 
-def _materialise_tree(primal, grad_primal):
-    if grad_primal is None:
-        return jtu.tree_map(jnp.zeros_like, primal)
-    return jtu.tree_map(
-        lambda p, g: jnp.zeros_like(p) if g is None else g, primal, grad_primal
-    )
-
-
-def _any_perturbed(tree):
-    return any(jtu.tree_leaves(tree))
-
-
-def _none_tree(tree):
-    return jtu.tree_map(lambda _: None, tree)
-
-
+@eqx.filter_checkpoint
 def _stage(terms, t, y, tmp, args, control, *, a_i, b_i):
+    # Recompute vector-field intermediates during reverse-mode differentiation.
     k = terms.vf_prod(t, y, args, control)
     tmp_next = jtu.tree_map(lambda tmpi, ki: a_i * tmpi + ki, tmp, k)
     y_next = jtu.tree_map(lambda yi, tmpi: yi + b_i * tmpi, y, tmp_next)
     return y_next, tmp_next
 
 
-def _run_low_storage_step(terms, t0, t1, y0, args, *, recurrence):
+@eqx.filter_checkpoint
+def _low_storage_step(step_arg, *, recurrence):
+    # Checkpoint the whole step as well, so its stage inputs are not retained
+    # between steps. Native autodiff supports JVPs and closed-over parameters.
+    terms, t0, t1, y0, args = step_arg
     a = jnp.asarray(recurrence.A)
     b = jnp.asarray(recurrence.B)
     c = jnp.asarray(recurrence.C)
@@ -51,140 +40,20 @@ def _run_low_storage_step(terms, t0, t1, y0, args, *, recurrence):
     control = terms.contr(t0, t1)
     ts = jnp.where(c[1:] == 1.0, t1, t0 + c[1:] * dt)
 
-    stage_inputs_y = []
-    stage_inputs_tmp = []
-
     y = y0
     tmp = jtu.tree_map(jnp.zeros_like, y0)
     for i in range(len(recurrence.B)):
-        stage_inputs_y.append(y)
-        stage_inputs_tmp.append(tmp)
+        if recurrence.penultimate_stage_error and i == len(recurrence.B) - 1:
+            y_penultimate = y
         a_i = 0.0 if i == 0 else a[i - 1]
         t_stage = t0 if i == 0 else ts[i - 1]
         y, tmp = _stage(terms, t_stage, y, tmp, args, control, a_i=a_i, b_i=b[i])
 
     if recurrence.penultimate_stage_error:
-        y_error = jtu.tree_map(lambda y1i, ypeni: y1i - ypeni, y, stage_inputs_y[-1])
+        y_error = jtu.tree_map(lambda y1i, ypeni: y1i - ypeni, y, y_penultimate)
     else:
         y_error = None
-    dense_info = dict(y0=y0, y1=y)
-    return (y, y_error, dense_info), (
-        control,
-        ts,
-        stage_inputs_y,
-        stage_inputs_tmp,
-        tmp,
-    )
-
-
-@eqx.filter_custom_vjp
-def _low_storage_step(vjp_arg, *, recurrence):
-    terms, t0, t1, y0, args = vjp_arg
-    out, _ = _run_low_storage_step(terms, t0, t1, y0, args, recurrence=recurrence)
-    return out
-
-
-@_low_storage_step.def_fwd
-def _low_storage_step_fwd(perturbed, vjp_arg, *, recurrence):
-    del perturbed
-    terms, t0, t1, y0, args = vjp_arg
-    out, _ = _run_low_storage_step(terms, t0, t1, y0, args, recurrence=recurrence)
-    return out, None
-
-
-@_low_storage_step.def_bwd
-def _low_storage_step_bwd(residuals, grad_out, perturbed, vjp_arg, *, recurrence):
-    del residuals
-    terms, t0, t1, y0, args = vjp_arg
-    terms_perturbed, t0_perturbed, t1_perturbed, _, args_perturbed = perturbed
-    (
-        (y1, y_error, _),
-        (
-            control,
-            ts,
-            stage_inputs_y,
-            stage_inputs_tmp,
-            tmp_final,
-        ),
-    ) = _run_low_storage_step(terms, t0, t1, y0, args, recurrence=recurrence)
-    grad_y1, grad_y_error, grad_dense_info = grad_out
-
-    diff_terms = eqx.filter(terms, eqx.is_inexact_array)
-    diff_args = eqx.filter(args, eqx.is_inexact_array)
-    grad_terms = jtu.tree_map(jnp.zeros_like, diff_terms)
-    grad_args = jtu.tree_map(jnp.zeros_like, diff_args)
-    grad_control = jtu.tree_map(
-        jnp.zeros_like, eqx.filter(control, eqx.is_inexact_array)
-    )
-    grad_t0 = jnp.zeros_like(t0)
-    grad_t1 = jnp.zeros_like(t1)
-
-    gdi = grad_dense_info or {}
-    grad_dense_y0 = _materialise_tree(y0, gdi.get("y0"))
-    grad_dense_y1 = _materialise_tree(y1, gdi.get("y1"))
-
-    grad_y = _materialise_tree(y1, grad_y1)
-    grad_y = eqx.apply_updates(grad_y, grad_dense_y1)
-    if recurrence.penultimate_stage_error:
-        grad_y_error = _materialise_tree(y_error, grad_y_error)
-        grad_y = eqx.apply_updates(grad_y, grad_y_error)
-
-    grad_tmp = jtu.tree_map(jnp.zeros_like, tmp_final)
-
-    for i in reversed(range(len(recurrence.B))):
-        y_in = stage_inputs_y[i]
-        tmp_in = stage_inputs_tmp[i]
-        t_stage = t0 if i == 0 else ts[i - 1]
-        a_i = 0.0 if i == 0 else recurrence.A[i - 1]
-        b_i = recurrence.B[i]
-        _, pullback = eqx.filter_vjp(
-            ft.partial(_stage, a_i=a_i, b_i=b_i),
-            terms,
-            t_stage,
-            y_in,
-            tmp_in,
-            args,
-            control,
-        )
-        dterms, d_t_stage, grad_y, grad_tmp, dargs, dcontrol = pullback(
-            (grad_y, grad_tmp)
-        )
-        if recurrence.penultimate_stage_error and i == len(recurrence.B) - 1:
-            grad_y = jtu.tree_map(lambda gy, ge: gy - ge, grad_y, grad_y_error)
-        if t0_perturbed or t1_perturbed:
-            c_i = recurrence.C[i]
-            if t0_perturbed:
-                grad_t0 = grad_t0 + (1.0 - c_i) * d_t_stage
-            if t1_perturbed:
-                grad_t1 = grad_t1 + c_i * d_t_stage
-        grad_terms = eqx.apply_updates(grad_terms, dterms)
-        grad_args = eqx.apply_updates(grad_args, dargs)
-        grad_control = eqx.apply_updates(grad_control, dcontrol)
-
-    grad_y0 = grad_y
-
-    if _any_perturbed(terms_perturbed):
-        _, pullback = eqx.filter_vjp(lambda terms_: terms_.contr(t0, t1), terms)
-        (dterms,) = pullback(grad_control)
-        grad_terms = eqx.apply_updates(grad_terms, dterms)
-    if t0_perturbed or t1_perturbed:
-        _, pullback = eqx.filter_vjp(
-            lambda t0_t1: terms.contr(t0_t1[0], t0_t1[1]), (t0, t1)
-        )
-        ((d_t0, d_t1),) = pullback(grad_control)
-        if t0_perturbed:
-            grad_t0 = grad_t0 + d_t0
-        if t1_perturbed:
-            grad_t1 = grad_t1 + d_t1
-    grad_y0 = eqx.apply_updates(grad_y0, grad_dense_y0)
-
-    return (
-        grad_terms if _any_perturbed(terms_perturbed) else _none_tree(diff_terms),
-        grad_t0 if t0_perturbed else None,
-        grad_t1 if t1_perturbed else None,
-        grad_y0,
-        grad_args if _any_perturbed(args_perturbed) else _none_tree(diff_args),
-    )
+    return y, y_error, {"y0": y0, "y1": y}
 
 
 @dataclass(frozen=True)
@@ -261,12 +130,14 @@ class LowStorageRecurrence:
         )
 
     @classmethod
-    def from_butcher(cls, tableau) -> "LowStorageRecurrence":
+    def from_butcher(cls, tableau) -> LowStorageRecurrence:
         """Construct from a :class:`diffrax.ButcherTableau`.
 
         Raises ``ValueError`` if the tableau does not have the structure required
         for a 2N Williamson representation.
         """
+        if tableau.implicit:
+            raise ValueError("A 2N low-storage recurrence must be explicit.")
         s = tableau.num_stages
         b_sol = np.asarray(tableau.b_sol)
         a_lower = [np.asarray(a) for a in tableau.a_lower]
@@ -281,29 +152,37 @@ class LowStorageRecurrence:
             B[i] = a_lower[i][i]
         B[s - 1] = b_sol[s - 1]
 
-        # A[i-1] = (a_lower[i][i-1] - a_lower[i-1][i-1]) / B[i]  for i in 1..s-2
-        # A[s-2]  = (b_sol[s-2] - B[s-2]) / B[s-1]
-        A = np.empty(s - 1)
-        for i in range(1, s - 1):
-            A[i - 1] = (a_lower[i][i - 1] - a_lower[i - 1][i - 1]) / B[i]
-        A[s - 2] = (b_sol[s - 2] - B[s - 2]) / B[s - 1]
+        # Q[i] contains the weights after update i. For every later row r,
+        # Q[r, j] - B[j] = A[j] * Q[r, j+1]. Use the largest denominator;
+        # unlike division by B[j+1], this also handles zero update weights.
+        Q = np.zeros((s, s))
+        for i, row in enumerate(a_lower):
+            Q[i, : i + 1] = row
+        Q[-1] = b_sol
+        A = np.zeros(s - 1)
+        for j in range(s - 1):
+            column = Q[j + 1 :, j + 1]
+            r = j + 1 + np.argmax(np.abs(column))
+            if Q[r, j + 1] != 0:
+                A[j] = (Q[r, j] - B[j]) / Q[r, j + 1]
 
-        recurrence = cls(A=A, B=B, C=C)
-        reconstructed = recurrence.to_butcher()
-
-        if not np.allclose(reconstructed.b_sol, b_sol):
-            raise ValueError(
-                "Butcher tableau is not representable as a 2N low-storage method."
-            )
-        for r, given in zip(reconstructed.a_lower, a_lower):
-            if not np.allclose(r, given):
+        # Verify every stage, including columns whose weights are all zero.
+        p = np.zeros(s)
+        q = np.zeros(s)
+        for i in range(s):
+            p *= A[i - 1] if i else 0.0
+            p[i] = 1.0
+            q += B[i] * p
+            if not np.allclose(q, Q[i]):
                 raise ValueError(
                     "Butcher tableau is not representable as a 2N low-storage method."
                 )
 
         b_error = np.asarray(tableau.b_error)
-        b_penultimate = np.append(reconstructed.a_lower[-1], 0.0)
-        penultimate_stage_error = np.allclose(b_error, b_sol - b_penultimate)
+        b_penultimate = Q[-2]
+        penultimate_stage_error = bool(np.any(b_error)) and np.allclose(
+            b_error, b_sol - b_penultimate
+        )
 
         return cls(A=A, B=B, C=C, penultimate_stage_error=penultimate_stage_error)
 

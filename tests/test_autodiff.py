@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
 
-from diffrax_lowstorage import BWRRK53, EES25
+from diffrax_lowstorage import BWRRK53, EES25, SHRK2N
 
 
 class AffineVF(eqx.Module):
@@ -54,15 +54,15 @@ def _reference_step(solver, terms, t0, t1, y0, args):
         if recurrence.penultimate_stage_error and i == len(b) - 1:
             y_pen = y
         k = terms.vf_prod(t_stage, y, args, control)
-        tmp = jtu.tree_map(lambda tmpi, ki: a_i * tmpi + ki, tmp, k)
-        y = jtu.tree_map(lambda yi, tmpi: yi + b_i * tmpi, y, tmp)
+        tmp = jtu.tree_map(lambda tmpi, ki, a_i=a_i: a_i * tmpi + ki, tmp, k)
+        y = jtu.tree_map(lambda yi, tmpi, b_i=b_i: yi + b_i * tmpi, y, tmp)
 
     y_error = (
         jtu.tree_map(lambda y1i, ypeni: y1i - ypeni, y, y_pen)
         if recurrence.penultimate_stage_error
         else None
     )
-    dense_info = dict(y0=y0, y1=y)
+    dense_info = {"y0": y0, "y1": y}
     return y, y_error, dense_info, None, diffrax.RESULTS.successful
 
 
@@ -93,7 +93,7 @@ def _assert_tree_allclose(got, expected, *, atol=1e-7, rtol=1e-6):
 
 @pytest.mark.parametrize("solver_cls", [EES25, BWRRK53])
 @pytest.mark.parametrize("term_kind", ["single", "multi"])
-def test_lowstorage_step_custom_vjp_matches_reference_gradients(solver_cls, term_kind):
+def test_lowstorage_step_matches_reference_gradients(solver_cls, term_kind):
     solver = solver_cls()
     packed = (
         _make_term(term_kind),
@@ -157,3 +157,89 @@ def test_reversible_adjoint_multiterm_args_grad_matches_checkpointed():
     )(args)
 
     _assert_tree_allclose(reversible_grad, checkpointed_grad, atol=1e-6, rtol=1e-5)
+
+
+@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53])
+@pytest.mark.parametrize("term_kind", ["single", "multi"])
+def test_step_jvp_matches_reference(solver_cls, term_kind):
+    solver = solver_cls()
+    packed = (
+        _make_term(term_kind),
+        jnp.array(0.1),
+        jnp.array(0.25),
+        jnp.array([0.2, -0.3]),
+        (jnp.array(0.7), jnp.array(-0.4)),
+    )
+    tangent = jtu.tree_map(
+        lambda x: jnp.ones_like(x) if eqx.is_inexact_array(x) else None, packed
+    )
+
+    def loss(packed, reference):
+        def step(terms, t0, t1, y0, args):
+            if reference:
+                return _reference_step(solver, terms, t0, t1, y0, args)
+            return solver.step(terms, t0, t1, y0, args, None, False)
+
+        return _loss_from_step(step, packed)
+
+    got = eqx.filter_jvp(lambda x: loss(x, False), (packed,), (tangent,))
+    expected = eqx.filter_jvp(lambda x: loss(x, True), (packed,), (tangent,))
+    _assert_tree_allclose(got, expected)
+
+
+@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, SHRK2N])
+@pytest.mark.parametrize(
+    "adjoint", [diffrax.RecursiveCheckpointAdjoint(), diffrax.DirectAdjoint()]
+)
+def test_solve_closure_gradient_matches_explicit_args(solver_cls, adjoint):
+    def loss(parameter, use_closure):
+        term = diffrax.ODETerm(
+            (lambda t, y, args: parameter * y)
+            if use_closure
+            else (lambda t, y, args: args * y)
+        )
+        out = diffrax.diffeqsolve(
+            term,
+            solver_cls(),
+            t0=0.0,
+            t1=0.2,
+            dt0=0.05,
+            y0=jnp.array(1.0),
+            args=None if use_closure else parameter,
+            adjoint=adjoint,
+            max_steps=8,
+        )
+        return out.ys.sum()
+
+    parameter = jnp.array(0.3)
+    got = jax.grad(lambda p: loss(p, True))(parameter)
+    expected = jax.grad(lambda p: loss(p, False))(parameter)
+    assert jnp.allclose(got, expected)
+    assert jnp.allclose(got, 0.2 * jnp.exp(0.2 * parameter), rtol=1e-4)
+
+
+@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, SHRK2N])
+def test_solve_forward_mode_matches_reverse_mode(solver_cls):
+    def loss(parameter, adjoint):
+        return diffrax.diffeqsolve(
+            diffrax.ODETerm(lambda t, y, args: args * y),
+            solver_cls(),
+            t0=0.0,
+            t1=0.2,
+            dt0=0.05,
+            y0=jnp.array(1.0),
+            args=parameter,
+            adjoint=adjoint,
+            max_steps=8,
+        ).ys.sum()
+
+    parameter = jnp.array(0.3)
+    _, got = jax.jvp(
+        lambda p: loss(p, diffrax.ForwardMode()),
+        (parameter,),
+        (jnp.ones_like(parameter),),
+    )
+    expected = jax.grad(lambda p: loss(p, diffrax.RecursiveCheckpointAdjoint()))(
+        parameter
+    )
+    assert jnp.allclose(got, expected)

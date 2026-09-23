@@ -8,7 +8,9 @@
 
 <h2 align='center'>Memory Efficient 2N Integrators for Diffrax.</h2>
 
-Diffrax-lowstorage provides memory-efficient ODE integrators for [Diffrax](https://github.com/patrick-kidger/diffrax). Its Williamson-form methods use custom forward and backward passes, so only two state vectors are needed regardless of stage count. 2N methods are ideal for large PDE discretisations, huge GPU batches of ODEs, and neural ODE/SDE workloads with EES methods for $\mathcal{O}(1)$ backpropagation.
+Diffrax-lowstorage provides memory-efficient ODE integrators for [Diffrax](https://github.com/patrick-kidger/diffrax). Its Williamson-form methods use two evolving state vectors per forward step, making them useful for large PDE discretisations and batches of ODEs.
+
+Differentiation uses standard JAX autodiff with checkpoints around each step and stage. Checkpoints recompute intermediates during the backward pass, and both forward-mode differentiation and gradients through vector-field closures are supported. Reversing a step still requires storage proportional to its stage count, plus vector-field workspace and parameter gradients. Storage across time steps depends on the Diffrax adjoint. The EES solvers support the fork's `ReversibleAdjoint`, which avoids storing the solution trajectory, but reconstructs it approximately rather than exactly.
 
 ## Solvers
 
@@ -47,12 +49,8 @@ sol = diffrax.diffeqsolve(
 
 ## Commutator-Free Conversion
 
-If you want a commutator-free equivalent, call `to_commutator_free()` on one of the
-low-storage solvers. This uses [diffrax-lowstorage](https://github.com/luke-a-thompson/diffrax-lowstorage)
-to build the matching commutator-free solver.
+If you want a commutator-free equivalent, call `to_commutator_free()` on one of the low-storage solvers. This requires `georax` to build the matching commutator-free solver.
 
 ## Install
 
-```
-uv sync
-```
+From a checkout, run `pip install .` or `uv sync --extra dev` for development. Both install the pinned [Diffrax fork](https://github.com/sammccallum/diffrax/tree/aeb1335b5a6278e85a270231e0f97b8db4453ae6) needed for `ReversibleAdjoint`. Python 3.11 and later are supported.

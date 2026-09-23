@@ -128,6 +128,7 @@ source = { editable = "." }
 dependencies = [
     { name = "diffrax" },
     { name = "jax" },
+    { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
@@ -144,6 +145,7 @@ requires-dist = [
     { name = "jax", specifier = ">=0.4.38" },
     { name = "matplotlib", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
+    { name = "typing-extensions", specifier = ">=4.5" },
 ]
 provides-extras = ["dev"]
 

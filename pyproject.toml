@@ -40,16 +40,14 @@ classifiers = [
 ]
 dependencies = [
     "jax>=0.4.38",
-    "diffrax>=0.7.1",
+    "diffrax @ git+https://github.com/sammccallum/diffrax@aeb1335b5a6278e85a270231e0f97b8db4453ae6",
+    "typing_extensions>=4.5",
 ]
 
 [project.urls]
 Homepage = "https://github.com/luke-a-thompson/diffrax-lowstorage"
 Repository = "https://github.com/luke-a-thompson/diffrax-lowstorage"
 Issues = "https://github.com/luke-a-thompson/diffrax-lowstorage/issues"
-
-[tool.uv.sources]
-diffrax = { git = "https://github.com/sammccallum/diffrax", rev = "aeb1335b5a6278e85a270231e0f97b8db4453ae6" }
 
 [project.optional-dependencies]
 dev = [

@@ -1,6 +1,7 @@
-from typing import ClassVar, override
+from typing import ClassVar
 
 import numpy as np
+from typing_extensions import override
 
 from .base import LowStorageRecurrence, LowStorageSolver
 

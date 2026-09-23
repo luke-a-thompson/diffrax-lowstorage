@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar, override
+from typing import ClassVar
 
 import numpy as np
 from diffrax import (
@@ -11,6 +11,7 @@ from diffrax import (
 )
 from diffrax._custom_types import Args, BoolScalarLike, DenseInfo, RealScalarLike, Y
 from jaxtyping import PyTree
+from typing_extensions import override
 
 from diffrax_lowstorage import LowStorageRecurrence, LowStorageSolver
 
@@ -25,9 +26,9 @@ _SolverState = Y
 
 
 class EES27(LowStorageSolver, AbstractReversibleSolver, AbstractStratonovichSolver):
-    """2N-EES(2,7;(1/4)) solver.
+    """2N-EES(2,7;(5-3*sqrt(2))/14) solver.
 
-    O(1)-reversible and converges to the Stratonovich solution.
+    Approximately reversible and converges to the Stratonovich solution.
 
     ??? Reference
 
@@ -72,7 +73,7 @@ class EES27(LowStorageSolver, AbstractReversibleSolver, AbstractStratonovichSolv
         solver_state: _SolverState,
         made_jump: BoolScalarLike,
     ) -> tuple[Y, DenseInfo, _SolverState, RESULTS]:
-        y0, _, dense_info, solver_state, result = self.step(
+        y0, _, _, solver_state, result = self.step(
             terms, t1, t0, y1, args, solver_state, made_jump
         )
-        return y0, dense_info, solver_state, result
+        return y0, {"y0": y0, "y1": y1}, solver_state, result
