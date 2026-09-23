@@ -24,7 +24,7 @@ _SolverState = Y
 
 
 class EES25(LowStorageSolver, AbstractReversibleSolver, AbstractStratonovichSolver):
-    """2N-EES(2,5;1/4) solver.
+    """2N-EES(2,5;1/10) solver.
 
     O(1)-reversible and converges to the Stratonovich solution.
 
