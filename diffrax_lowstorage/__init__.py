@@ -7,6 +7,7 @@ from .bwrrk53 import BWRRK53 as BWRRK53
 from .ckrk54 import CKRK54 as CKRK54
 from .ees25 import EES25 as EES25
 from .ees27 import EES27 as EES27
+from .ees29 import EES29 as EES29
 from .ndbrk124 import NDBRK124 as NDBRK124
 from .ndbrk134 import NDBRK134 as NDBRK134
 from .ndbrk144 import NDBRK144 as NDBRK144

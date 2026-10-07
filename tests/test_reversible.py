@@ -3,10 +3,10 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from diffrax_lowstorage import EES25, EES27
+from diffrax_lowstorage import EES25, EES27, EES29
 
 
-@pytest.mark.parametrize("solver_cls", [EES25, EES27])
+@pytest.mark.parametrize("solver_cls", [EES25, EES27, EES29])
 def test_backward_step_interpolation_has_forward_orientation(solver_cls):
     solver = solver_cls()
     term = diffrax.ODETerm(lambda t, y, args: jnp.ones_like(y))

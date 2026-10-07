@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
 
-from diffrax_lowstorage import BWRRK53, EES25, SHRK2N
+from diffrax_lowstorage import BWRRK53, EES25, EES29, SHRK2N
 
 
 class AffineVF(eqx.Module):
@@ -123,8 +123,9 @@ def test_lowstorage_step_matches_reference_gradients(solver_cls, term_kind):
     _assert_tree_allclose(custom_grad, reference_grad)
 
 
-def test_reversible_adjoint_multiterm_args_grad_matches_checkpointed():
-    solver = EES25()
+@pytest.mark.parametrize("solver_cls", [EES25, EES29])
+def test_reversible_adjoint_multiterm_args_grad_matches_checkpointed(solver_cls):
+    solver = solver_cls()
     term = _make_term("multi")
     y0 = jnp.array([0.1, -0.2])
     args = (jnp.array(0.3), jnp.array(-0.1))

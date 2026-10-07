@@ -15,6 +15,7 @@ from diffrax_lowstorage import (
     CKRK54,
     EES25,
     EES27,
+    EES29,
     NDBRK124,
     NDBRK134,
     NDBRK144,
@@ -44,6 +45,7 @@ NO_ERROR_SOLVERS = (
     ("shrk2n", SHRK2N),
     ("ees25", EES25),
     ("ees27", EES27),
+    ("ees29", EES29),
 )
 
 PENULTIMATE_ERROR_SOLVERS = (("bwrrk53", BWRRK53),)
