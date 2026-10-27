@@ -1,8 +1,20 @@
 import diffrax
 import jax.numpy as jnp
 import pytest
-
 from conftest import NO_ERROR_SOLVERS, PENULTIMATE_ERROR_SOLVERS
+
+from diffrax_lowstorage import BWRRK53
+
+
+def test_error_estimate_survives_rounded_away_state_updates():
+    # For y' = t^2 on [0, 1], the two formulas add 1/3 and 3/10.
+    # Both increments round away at this state magnitude; their error must not.
+    term = diffrax.ODETerm(lambda t, y, args: jnp.full_like(y, t**2))
+    y0 = jnp.array(1e20)
+    y1, error, _, _, _ = BWRRK53().step(term, 0.0, 1.0, y0, None, None, False)
+    assert y1 == y0
+    assert error is not None
+    assert jnp.allclose(error, 1 / 30, rtol=1e-6, atol=0)
 
 
 @pytest.mark.parametrize(("solver_name", "solver_cls"), PENULTIMATE_ERROR_SOLVERS)

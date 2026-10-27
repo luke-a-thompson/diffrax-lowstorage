@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from importlib import import_module
 from typing import ClassVar, TypeAlias
 
@@ -70,14 +70,12 @@ def _low_storage_step(
     y = y0
     tmp = jtu.tree_map(jnp.zeros_like, y0)
     for i in range(len(recurrence.B)):
-        if recurrence.penultimate_stage_error and i == len(recurrence.B) - 1:
-            y_penultimate = y
         a_i = 0.0 if i == 0 else a[i - 1]
         t_stage = t0 if i == 0 else ts[i - 1]
         y, tmp = _stage(terms, t_stage, y, tmp, args, control, a_i=a_i, b_i=b[i])
 
     if recurrence.penultimate_stage_error:
-        y_error = jtu.tree_map(lambda y1i, ypeni: y1i - ypeni, y, y_penultimate)
+        y_error = jtu.tree_map(lambda ti: b[-1] * ti, tmp)
     else:
         y_error = None
     return y, y_error, {"y0": y0, "y1": y}
@@ -91,8 +89,6 @@ class LowStorageRecurrence:
     B: NDArray[np.float64]
     C: NDArray[np.float64]
     penultimate_stage_error: bool = False
-
-    num_stages: int = field(init=False)
 
     def __post_init__(self) -> None:
         a = np.asarray(self.A)
@@ -111,7 +107,10 @@ class LowStorageRecurrence:
             raise ValueError(
                 "Need at least two stages for `use_penultimate_stage_error=True`."
             )
-        object.__setattr__(self, "num_stages", num_stages)
+
+    @property
+    def num_stages(self) -> int:
+        return len(self.B)
 
     def to_butcher(self) -> ButcherTableau:
         """Convert to a :class:`diffrax.ButcherTableau`.
@@ -121,29 +120,22 @@ class LowStorageRecurrence:
         value). Otherwise ``b_error`` is zero and no error estimate is provided.
         """
         s = self.num_stages
-        A = self.A
-        B = self.B
 
-        # P[i, j] = coefficient of k_j in tmp_i (the recurrence accumulator).
-        # P[i, j] = prod(A[j:i])  (empty product = 1 when j == i).
-        # Q[i, j] = coefficient of k_j in (y_{i+1} - y0).
-        # Q[i, j] = sum_{m=j}^{i} B[m] * P[m, j]
-        P = np.zeros((s, s))
+        # Track stage-slope coefficients in tmp and y - y0.
+        p = np.zeros(s)
+        q = np.zeros(s)
         Q = np.zeros((s, s))
-        for i in range(s):
-            P[i, i] = 1.0
-            for j in range(i):
-                P[i, j] = A[i - 1] * P[i - 1, j]
-            q_prev = Q[i - 1] if i > 0 else np.zeros(s)
-            for j in range(i + 1):
-                Q[i, j] = q_prev[j] + B[i] * P[i, j]
+        for i, b in enumerate(self.B):
+            p *= self.A[i - 1] if i else 0.0
+            p[i] = 1.0
+            q += b * p
+            Q[i] = q
 
         a_lower = tuple(Q[i, : i + 1].copy() for i in range(s - 1))
         b_sol = Q[s - 1].copy()
 
         if self.penultimate_stage_error:
-            b_embedded = np.append(Q[s - 2, : s - 1], 0.0)
-            b_error = b_sol - b_embedded
+            b_error = Q[-1] - Q[-2]
         else:
             b_error = np.zeros(s)
 
