@@ -3,15 +3,16 @@ import numpy as np
 import pytest
 from conftest import SOLVERS
 
-from diffrax_lowstorage import EES29, LowStorageRecurrence, LowStorageSolver
+from diffrax_lowstorage import CosineEES, LowStorageRecurrence, LowStorageSolver
 
 
 @pytest.mark.parametrize(("solver_name", "solver_cls"), SOLVERS)
 def test_builtin_tableau_round_trip(solver_name, solver_cls):
     del solver_name
-    if not issubclass(solver_cls, LowStorageSolver):
+    solver = solver_cls()
+    if not isinstance(solver, LowStorageSolver):
         pytest.skip("Alternating solver has no single tableau.")
-    recurrence = solver_cls.recurrence
+    recurrence = solver.recurrence
     reconstructed = LowStorageRecurrence.from_butcher(recurrence.to_butcher())
     np.testing.assert_allclose(reconstructed.A, recurrence.A, atol=1e-12)
     np.testing.assert_allclose(reconstructed.B, recurrence.B, atol=1e-12)
@@ -19,9 +20,9 @@ def test_builtin_tableau_round_trip(solver_name, solver_cls):
     assert reconstructed.penultimate_stage_error == recurrence.penultimate_stage_error
 
 
-def test_ees29_matches_supplied_tableau():
+def test_cosine_ees9_matches_supplied_tableau():
     s5 = np.sqrt(5.0)
-    tableau = EES29.recurrence.to_butcher()
+    tableau = CosineEES(9).recurrence.to_butcher()
     expected_rows = (
         np.array([(3 - s5) / 4]),
         np.array([0.0, 1 / 2]),
@@ -41,6 +42,33 @@ def test_ees29_matches_supplied_tableau():
         tableau.c, [(3 - s5) / 4, 1 / 2, (1 + s5) / 4, 1.0], atol=1e-14
     )
     np.testing.assert_array_equal(tableau.b_error, np.zeros(5))
+
+
+@pytest.mark.parametrize("order", [3, 5, 7, 9, 11, 31])
+def test_cosine_ees_matches_cosine_tableau(order):
+    solver = CosineEES(reversible_order=order)
+    recurrence = solver.recurrence
+    tableau = recurrence.to_butcher()
+    s = (order + 1) // 2
+    d = -np.diff(np.cos(np.arange(s + 1) * np.pi / s))
+    assert tableau.num_stages == s
+    for i, row in enumerate(tableau.a_lower, start=1):
+        expected = np.where((i - np.arange(i)) % 2, d[:i], 0.0)
+        np.testing.assert_allclose(row, expected, atol=1e-14)
+        np.testing.assert_allclose(recurrence.C[i], expected.sum(), atol=1e-14)
+    np.testing.assert_allclose(tableau.b_sol, d / 2, atol=1e-14)
+    assert recurrence.C[0] == 0.0
+    assert recurrence.C[-1] == 1.0
+    assert solver.order(None) == 2
+    assert solver.strong_order(None) == 0.5
+    assert solver.antisymmetric_order(None) == order
+    assert solver.error_order(None) is None
+
+
+@pytest.mark.parametrize("order", [-3, 0, 1, 2, 4, 10, 3.0, 3.5, True, "9", None])
+def test_cosine_ees_rejects_invalid_order(order):
+    with pytest.raises(ValueError, match="odd integer >= 3"):
+        CosineEES(order)
 
 
 @pytest.mark.parametrize(

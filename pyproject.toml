@@ -53,7 +53,6 @@ Issues = "https://github.com/luke-a-thompson/diffrax-lowstorage/issues"
 dev = [
     "pytest",
     "matplotlib",
-    "fbm",
 ]
 
 [tool.uv.build-backend]

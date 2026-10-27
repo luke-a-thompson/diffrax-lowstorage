@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, Literal, NamedTuple
 
 import diffrax
@@ -15,7 +16,6 @@ from diffrax_lowstorage import (
     CKRK54,
     EES25,
     EES27,
-    EES29,
     NDBRK124,
     NDBRK134,
     NDBRK144,
@@ -26,6 +26,7 @@ from diffrax_lowstorage import (
     TSRKC84,
     TSRKF84,
     YRK135,
+    CosineEES,
 )
 
 NO_ERROR_SOLVERS = (
@@ -45,7 +46,8 @@ NO_ERROR_SOLVERS = (
     ("shrk2n", SHRK2N),
     ("ees25", EES25),
     ("ees27", EES27),
-    ("ees29", EES29),
+    ("cosine_ees9", partial(CosineEES, 9)),
+    ("cosine_ees11", partial(CosineEES, 11)),
 )
 
 PENULTIMATE_ERROR_SOLVERS = (("bwrrk53", BWRRK53),)

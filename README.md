@@ -22,7 +22,7 @@ Differentiation uses standard JAX autodiff with checkpoints around each step and
 | `CKRK54` | 5 | 4 | No |
 | `EES25` | 3 | 2 | No |
 | `EES27` | 4 | 2 | No |
-| `EES29` | 5 | 2 | No |
+| `CosineEES(p)` | `(p + 1) // 2` | 2 | No |
 | `SHRK52` | 5 | 2 | No |
 | `SHRK64` | 6 | 4 | No |
 | `SHRK2N` | 5/6 alternating | 4 | No |
@@ -48,16 +48,17 @@ sol = diffrax.diffeqsolve(
 )
 ```
 
-## Convergence experiments
+For the cosine EES family, use `CosineEES(reversible_order=11)` with any odd integer at least 3. This selects the round-trip convergence order; forward accuracy remains second order. `CosineEES(9)` replaces `EES29`, and `CosineEES(11)` uses six stages. `EES25` and `EES27` retain their distinct parameter choices.
 
-The deterministic examples compare `EES25`, `EES27`, and `EES29` using Georax's convergence chart style: crimson crosses for measured errors and blue lines for the expected rates. Grey crosses mark errors at floating-point roundoff and are excluded from slope fits. Each run saves PNG and PDF charts plus JSON results in `docs/examples/outputs`. Install the development dependencies to run these examples.
+## Decimal convergence experiment
+
+The Decimal experiment compares `EES25`, `EES27`, and `CosineEES(9)` using Georax's convergence chart style: crimson crosses for measured errors and blue lines for the expected rates. Grey crosses mark errors at Decimal roundoff and are excluded from slope fits. Each run saves PNG and PDF charts plus JSON results in `docs/examples/outputs`. Install the development dependencies to run the example.
 
 ```bash
-python docs/examples/solver_convergence.py
 python docs/examples/solver_convergence_decimal.py
 ```
 
-The ODE experiment uses the exact solution of `y' = -y**3` and measures reconstruction through `backward_step` in float64. The separate Decimal experiment evaluates the same low-storage recurrences with 80-digit coefficients, solution values, and errors, allowing the ninth-order round-trip convergence of `EES29` to remain visible below float64 roundoff. Set `--precision` to choose the number of decimal digits.
+The experiment uses the exact solution of `y' = -y**3` to measure forward errors and reverses the step size to measure round-trip errors. It evaluates the low-storage recurrences with 80-digit coefficients, solution values, and errors, allowing the ninth-order round-trip convergence of `CosineEES(9)` to remain visible below float64 roundoff. Set `--precision` to choose the number of decimal digits.
 
 ## Commutator-Free Conversion
 

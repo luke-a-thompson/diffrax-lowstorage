@@ -1,3 +1,5 @@
+from functools import partial
+
 import diffrax
 import equinox as eqx
 import jax
@@ -5,7 +7,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
 
-from diffrax_lowstorage import BWRRK53, EES25, EES29, SHRK2N
+from diffrax_lowstorage import BWRRK53, EES25, SHRK2N, CosineEES
 
 
 class AffineVF(eqx.Module):
@@ -91,7 +93,7 @@ def _assert_tree_allclose(got, expected, *, atol=1e-7, rtol=1e-6):
             assert jnp.allclose(got_leaf, exp_leaf, atol=atol, rtol=rtol)
 
 
-@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53])
+@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, partial(CosineEES, 11)])
 @pytest.mark.parametrize("term_kind", ["single", "multi"])
 def test_lowstorage_step_matches_reference_gradients(solver_cls, term_kind):
     solver = solver_cls()
@@ -123,9 +125,8 @@ def test_lowstorage_step_matches_reference_gradients(solver_cls, term_kind):
     _assert_tree_allclose(custom_grad, reference_grad)
 
 
-@pytest.mark.parametrize("solver_cls", [EES25, EES29])
-def test_reversible_adjoint_multiterm_args_grad_matches_checkpointed(solver_cls):
-    solver = solver_cls()
+@pytest.mark.parametrize("solver", [EES25(), CosineEES(9), CosineEES(11)])
+def test_reversible_adjoint_multiterm_args_grad_matches_checkpointed(solver):
     term = _make_term("multi")
     y0 = jnp.array([0.1, -0.2])
     args = (jnp.array(0.3), jnp.array(-0.1))
@@ -160,7 +161,7 @@ def test_reversible_adjoint_multiterm_args_grad_matches_checkpointed(solver_cls)
     _assert_tree_allclose(reversible_grad, checkpointed_grad, atol=1e-6, rtol=1e-5)
 
 
-@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53])
+@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, partial(CosineEES, 11)])
 @pytest.mark.parametrize("term_kind", ["single", "multi"])
 def test_step_jvp_matches_reference(solver_cls, term_kind):
     solver = solver_cls()
@@ -188,7 +189,7 @@ def test_step_jvp_matches_reference(solver_cls, term_kind):
     _assert_tree_allclose(got, expected)
 
 
-@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, SHRK2N])
+@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, SHRK2N, partial(CosineEES, 11)])
 @pytest.mark.parametrize(
     "adjoint", [diffrax.RecursiveCheckpointAdjoint(), diffrax.DirectAdjoint()]
 )
@@ -219,7 +220,7 @@ def test_solve_closure_gradient_matches_explicit_args(solver_cls, adjoint):
     assert jnp.allclose(got, 0.2 * jnp.exp(0.2 * parameter), rtol=1e-4)
 
 
-@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, SHRK2N])
+@pytest.mark.parametrize("solver_cls", [EES25, BWRRK53, SHRK2N, partial(CosineEES, 11)])
 def test_solve_forward_mode_matches_reverse_mode(solver_cls):
     def loss(parameter, adjoint):
         return diffrax.diffeqsolve(

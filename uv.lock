@@ -133,7 +133,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "fbm" },
     { name = "matplotlib" },
     { name = "pytest" },
 ]
@@ -141,7 +140,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "diffrax", git = "https://github.com/sammccallum/diffrax?rev=aeb1335b5a6278e85a270231e0f97b8db4453ae6" },
-    { name = "fbm", marker = "extra == 'dev'" },
     { name = "jax", specifier = ">=0.4.38" },
     { name = "matplotlib", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
@@ -162,19 +160,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8c/b3/ab523b630e55f7038360f962c17b4a3a438850796d7f64f1e3c6e188775f/equinox-0.13.6.tar.gz", hash = "sha256:27529bb24fde117a0e976fca8027642eb1c8559e9445fb8d527792f64c74855a", size = 141923, upload-time = "2026-03-09T19:03:39.12Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4f/e9/3759a02b0307fdbbb201d8a2b00e192a24cac86b1db9bd3bfa1cbbb9decc/equinox-0.13.6-py3-none-any.whl", hash = "sha256:e01f6bee9d2fb9a1a51d8b34af3b70476a4727097b46b1115f36432b2488f4a0", size = 182056, upload-time = "2026-03-09T19:03:37.742Z" },
-]
-
-[[package]]
-name = "fbm"
-version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/52/a241755499462dd688858ccced125be3d338555b7a0e4d5f101236b91c71/fbm-0.3.0.tar.gz", hash = "sha256:4f1cf868a3af0bb0da88e7a87bfc8f868817af29e926b4bebcc96d4c362e72ee", size = 9472, upload-time = "2019-05-27T22:59:10.356Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/16/f8/f103aa4947ae83ce8e91c448c284ac71b88e449e5418c7baff69c7c51624/fbm-0.3.0-py2.py3-none-any.whl", hash = "sha256:8e03e230021f433d631dc289eecb6905a11a60eb6a89bd5a9dc4e66adcc22945", size = 9375, upload-time = "2019-05-27T22:59:08.986Z" },
-    { url = "https://files.pythonhosted.org/packages/33/14/69ba4b1b00790c2608a63cc695c93cef6d932ec83a7bba8cfa8245350f84/fbm-0.3.0-py3-none-any.whl", hash = "sha256:88d30a0851cbe72ba9c5cc1b668e9e1c49f460ace21cce6ebe7aa0b7f681d358", size = 9371, upload-time = "2019-05-27T23:00:44.572Z" },
 ]
 
 [[package]]

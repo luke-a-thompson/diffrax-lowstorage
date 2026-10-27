@@ -76,9 +76,12 @@ def test_lowstorage_solver_order(solver_name, solver_cls):
         # Larger steps than the forward test: high-order cancellation is visible
         # before floating-point noise dominates.
         dts_rt = jnp.array([1 / 64, 1 / 128, 1 / 256, 1 / 512])
-        if solver_name == "ees29":
+        if expected_rt_order == 9:
             # Ninth-order round-trip errors reach roundoff at the smaller steps.
             dts_rt = jnp.array([1 / 16, 1 / 32, 1 / 64, 1 / 128])
+        elif expected_rt_order == 11:
+            # Resolve the asymptotic rate before float64 roundoff dominates.
+            dts_rt = jnp.array([1 / 24, 1 / 32, 1 / 48, 1 / 64])
         rt_errors = []
         for dt in dts_rt:
             out_fwd = diffrax.diffeqsolve(

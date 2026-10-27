@@ -1,4 +1,4 @@
-"""Decimal convergence experiment for EES25, EES27, and EES29.
+"""Decimal convergence experiment for EES25, EES27, and CosineEES(9).
 
 All coefficients, square roots, solution values, and errors use Decimal arithmetic
 at 80 digits by default. Only computed log-errors are converted to float for
@@ -60,7 +60,7 @@ def make_recurrences():
             B=((2 - s2) / 3, (4 + s2) / 8, 3 * (3 - s2) / 7, (9 - 4 * s2) / 14),
         ),
         DecimalRecurrence(
-            "EES29",
+            "CosineEES(9)",
             9,
             A=((s5 - 3) / 2, -(1 + s5) / 4, 1 - s5, -(3 + s5) / 2),
             B=((3 - s5) / 4, d(1) / 2, (s5 - 1) / 2, d(1) / 2, (3 - s5) / 8),
