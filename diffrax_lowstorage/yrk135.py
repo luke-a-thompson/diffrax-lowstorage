@@ -1,6 +1,8 @@
 from typing import ClassVar
 
 import numpy as np
+from diffrax import AbstractTerm
+from jaxtyping import PyTree
 from typing_extensions import override
 
 from .base import LowStorageRecurrence, LowStorageSolver
@@ -92,6 +94,6 @@ class YRK135(LowStorageSolver):
     recurrence: ClassVar[LowStorageRecurrence] = _yrk135_tableau
 
     @override
-    def order(self, terms):
+    def order(self, terms: PyTree[AbstractTerm]) -> int:
         del terms
         return 5

@@ -1,9 +1,25 @@
+from collections.abc import Callable
 from typing import ClassVar
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-from diffrax import RESULTS, AbstractSolver, AbstractTerm, LocalLinearInterpolation
+from diffrax import (
+    RESULTS,
+    AbstractLocalInterpolation,
+    AbstractSolver,
+    AbstractTerm,
+    LocalLinearInterpolation,
+)
+from diffrax._custom_types import (
+    VF,
+    Args,
+    BoolScalarLike,
+    DenseInfo,
+    RealScalarLike,
+    Y,
+)
+from jaxtyping import PyTree
 
 from .base import LowStorageRecurrence, _low_storage_step
 
@@ -20,7 +36,7 @@ _shrk2n_second_recurrence = LowStorageRecurrence(
 )
 
 
-class SHRK2N(AbstractSolver):
+class SHRK2N(AbstractSolver[BoolScalarLike]):
     """Alternating 2N RK method by Stanescu and Habashi.
 
     Corresponds to: SHLDDRK_2N in Diffeq.jl.
@@ -45,45 +61,46 @@ class SHRK2N(AbstractSolver):
         ```
     """
 
-    term_structure: ClassVar = AbstractTerm
-    interpolation_cls: ClassVar = LocalLinearInterpolation
+    term_structure: ClassVar[type[AbstractTerm]] = AbstractTerm
+    interpolation_cls: ClassVar[Callable[..., AbstractLocalInterpolation]] = (
+        LocalLinearInterpolation
+    )
 
-    def order(self, terms):
+    def order(self, terms: PyTree[AbstractTerm]) -> int:
         del terms
         return 4
 
-    def error_order(self, terms):
+    def error_order(self, terms: PyTree[AbstractTerm]) -> None:
         del terms
-        return None
 
     def init(
         self,
         terms: AbstractTerm,
-        t0,
-        t1,
-        y0,
-        args,
-    ):
+        t0: RealScalarLike,
+        t1: RealScalarLike,
+        y0: Y,
+        args: Args,
+    ) -> BoolScalarLike:
         del terms, t0, t1, y0, args
         return jnp.asarray(False)
 
     def step(
         self,
         terms: AbstractTerm,
-        t0,
-        t1,
-        y0,
-        args,
-        solver_state,
-        made_jump,
-    ):
-        def first_step(_):
+        t0: RealScalarLike,
+        t1: RealScalarLike,
+        y0: Y,
+        args: Args,
+        solver_state: BoolScalarLike,
+        made_jump: BoolScalarLike,
+    ) -> tuple[Y, Y | None, DenseInfo, BoolScalarLike, RESULTS]:
+        def first_step(_: None) -> tuple[Y, Y | None, DenseInfo]:
             return _low_storage_step(
                 (terms, t0, t1, y0, args),
                 recurrence=_shrk2n_first_recurrence,
             )
 
-        def second_step(_):
+        def second_step(_: None) -> tuple[Y, Y | None, DenseInfo]:
             return _low_storage_step(
                 (terms, t0, t1, y0, args),
                 recurrence=_shrk2n_second_recurrence,
@@ -107,8 +124,8 @@ class SHRK2N(AbstractSolver):
     def func(
         self,
         terms: AbstractTerm,
-        t0,
-        y0,
-        args,
-    ):
+        t0: RealScalarLike,
+        y0: Y,
+        args: Args,
+    ) -> VF:
         return terms.vf(t0, y0, args)

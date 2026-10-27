@@ -1,11 +1,13 @@
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Literal, NamedTuple
+from typing import Any, Literal, NamedTuple, TypeAlias
 
 import diffrax
 import jax
 import jax.numpy as jnp
 import lineax
 from diffrax import Bosh3, Heun, MultiTerm, ODETerm, ReversibleHeun
+from diffrax._custom_types import Args, RealScalarLike
 from jaxtyping import PyTree
 
 from diffrax_lowstorage import (
@@ -27,9 +29,13 @@ from diffrax_lowstorage import (
     TSRKF84,
     YRK135,
     CosineEES,
+    LowStorageSolver,
 )
 
-NO_ERROR_SOLVERS = (
+SolverFactory: TypeAlias = Callable[[], LowStorageSolver | SHRK2N]
+BenchWeights: TypeAlias = tuple[jax.Array, tuple[jax.Array, ...], jax.Array]
+
+NO_ERROR_SOLVERS: tuple[tuple[str, SolverFactory], ...] = (
     ("bwrrk33", BWRRK33),
     ("yrk135", YRK135),
     ("ckrk54", CKRK54),
@@ -50,7 +56,9 @@ NO_ERROR_SOLVERS = (
     ("cosine_ees11", partial(CosineEES, 11)),
 )
 
-PENULTIMATE_ERROR_SOLVERS = (("bwrrk53", BWRRK53),)
+PENULTIMATE_ERROR_SOLVERS: tuple[tuple[str, SolverFactory], ...] = (
+    ("bwrrk53", BWRRK53),
+)
 
 SOLVERS = NO_ERROR_SOLVERS + PENULTIMATE_ERROR_SOLVERS
 
@@ -76,7 +84,7 @@ _BENCH_W_OUT = jax.random.normal(
 _BENCH_PARAMS = (_BENCH_W_IN, _BENCH_W_MID, _BENCH_W_OUT)
 
 
-def _bench_apply(weights, y):
+def _bench_apply(weights: BenchWeights, y: jax.Array) -> jax.Array:
     w_in, w_mid_layers, w_out = weights
     h = jnp.tanh(w_in @ y)
     for w_mid in w_mid_layers:
@@ -84,12 +92,12 @@ def _bench_apply(weights, y):
     return -0.1 * (w_out @ h)
 
 
-def _bench_vf_global(t, y, args):
+def _bench_vf_global(t: RealScalarLike, y: jax.Array, args: Args) -> jax.Array:
     del t, args
     return _bench_apply(_BENCH_PARAMS, y)
 
 
-def _bench_vf_args(t, y, args):
+def _bench_vf_args(t: RealScalarLike, y: jax.Array, args: BenchWeights) -> jax.Array:
     del t
     return _bench_apply(args, y)
 
@@ -132,7 +140,7 @@ BENCH_CASES = [
     BenchCase("sde/args", BENCH_SDE_TERM_ARGS, (_BENCH_DIM,), _BENCH_PARAMS, "args"),
 ]
 
-BENCH_SOLVERS = [
+BENCH_SOLVERS: list[tuple[str, Callable[[], diffrax.AbstractSolver]]] = [
     ("bosh3", Bosh3),
     ("heun", Heun),
     ("reversible_heun", ReversibleHeun),

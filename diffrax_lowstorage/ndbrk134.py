@@ -1,6 +1,8 @@
 from typing import ClassVar
 
 import numpy as np
+from diffrax import AbstractTerm
+from jaxtyping import PyTree
 
 from .base import LowStorageRecurrence, LowStorageSolver
 
@@ -85,6 +87,6 @@ class NDBRK134(LowStorageSolver):
 
     recurrence: ClassVar[LowStorageRecurrence] = _ndbrk134_recurrence
 
-    def order(self, terms):
+    def order(self, terms: PyTree[AbstractTerm]) -> int:
         del terms
         return 4

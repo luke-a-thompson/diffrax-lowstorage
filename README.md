@@ -67,3 +67,5 @@ If you want a commutator-free equivalent, call `to_commutator_free()` on one of 
 ## Install
 
 From a checkout, run `pip install .` or `uv sync --extra dev` for development. Both install the pinned [Diffrax fork](https://github.com/sammccallum/diffrax/tree/aeb1335b5a6278e85a270231e0f97b8db4453ae6) needed for `ReversibleAdjoint`. Python 3.11 and later are supported.
+
+Run `uv run --extra dev ty check` to type-check the package, tests, and examples.

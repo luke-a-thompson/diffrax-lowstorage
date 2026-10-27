@@ -1,7 +1,7 @@
-from __future__ import annotations
-
+from abc import abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from importlib import import_module
 from typing import ClassVar, TypeAlias
 
 import equinox as eqx
@@ -10,16 +10,39 @@ import jax.tree_util as jtu
 import numpy as np
 from diffrax import (
     RESULTS,
+    AbstractLocalInterpolation,
     AbstractSolver,
     AbstractTerm,
+    ButcherTableau,
     LocalLinearInterpolation,
 )
+from diffrax._custom_types import (
+    VF,
+    Args,
+    BoolScalarLike,
+    Control,
+    DenseInfo,
+    RealScalarLike,
+    Y,
+)
+from jaxtyping import PyTree
+from numpy.typing import NDArray
 
 _SolverState: TypeAlias = None
 
 
 @eqx.filter_checkpoint
-def _stage(terms, t, y, tmp, args, control, *, a_i, b_i):
+def _stage(
+    terms: AbstractTerm,
+    t: RealScalarLike,
+    y: Y,
+    tmp: Y,
+    args: Args,
+    control: Control,
+    *,
+    a_i: RealScalarLike,
+    b_i: RealScalarLike,
+) -> tuple[Y, Y]:
     # Recompute vector-field intermediates during reverse-mode differentiation.
     k = terms.vf_prod(t, y, args, control)
     tmp_next = jtu.tree_map(lambda tmpi, ki: a_i * tmpi + ki, tmp, k)
@@ -28,7 +51,11 @@ def _stage(terms, t, y, tmp, args, control, *, a_i, b_i):
 
 
 @eqx.filter_checkpoint
-def _low_storage_step(step_arg, *, recurrence):
+def _low_storage_step(
+    step_arg: tuple[AbstractTerm, RealScalarLike, RealScalarLike, Y, Args],
+    *,
+    recurrence: "LowStorageRecurrence",
+) -> tuple[Y, Y | None, DenseInfo]:
     # Checkpoint the whole step as well, so its stage inputs are not retained
     # between steps. Native autodiff supports JVPs and closed-over parameters.
     terms, t0, t1, y0, args = step_arg
@@ -60,14 +87,14 @@ def _low_storage_step(step_arg, *, recurrence):
 class LowStorageRecurrence:
     """Coefficients for a 2N Williamson-style low-storage Runge--Kutta method."""
 
-    A: np.ndarray
-    B: np.ndarray
-    C: np.ndarray
+    A: NDArray[np.float64]
+    B: NDArray[np.float64]
+    C: NDArray[np.float64]
     penultimate_stage_error: bool = False
 
     num_stages: int = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         a = np.asarray(self.A)
         b = np.asarray(self.B)
         c = np.asarray(self.C)
@@ -86,15 +113,13 @@ class LowStorageRecurrence:
             )
         object.__setattr__(self, "num_stages", num_stages)
 
-    def to_butcher(self):
+    def to_butcher(self) -> ButcherTableau:
         """Convert to a :class:`diffrax.ButcherTableau`.
 
         For methods with ``penultimate_stage_error=True``, the embedded error
         coefficients are set to ``b_sol - b_penultimate`` (the penultimate stage
         value). Otherwise ``b_error`` is zero and no error estimate is provided.
         """
-        from diffrax import ButcherTableau
-
         s = self.num_stages
         A = self.A
         B = self.B
@@ -130,7 +155,7 @@ class LowStorageRecurrence:
         )
 
     @classmethod
-    def from_butcher(cls, tableau) -> LowStorageRecurrence:
+    def from_butcher(cls, tableau: ButcherTableau) -> "LowStorageRecurrence":
         """Construct from a :class:`diffrax.ButcherTableau`.
 
         Raises ``ValueError`` if the tableau does not have the structure required
@@ -187,17 +212,21 @@ class LowStorageRecurrence:
         return cls(A=A, B=B, C=C, penultimate_stage_error=penultimate_stage_error)
 
 
-class LowStorageSolver(AbstractSolver):
+class LowStorageSolver(AbstractSolver[_SolverState]):
     """Minimal explicit 2N low-storage Runge--Kutta solver in Williamson form."""
 
-    recurrence: ClassVar[LowStorageRecurrence]
+    @property
+    @abstractmethod
+    def recurrence(self) -> LowStorageRecurrence:
+        """The method's coefficients, provided as a class attribute or property."""
+        raise NotImplementedError
 
-    term_structure: ClassVar = AbstractTerm
-    interpolation_cls: ClassVar[Callable[..., LocalLinearInterpolation]] = (
+    term_structure: ClassVar[type[AbstractTerm]] = AbstractTerm
+    interpolation_cls: ClassVar[Callable[..., AbstractLocalInterpolation]] = (
         LocalLinearInterpolation
     )
 
-    def error_order(self, terms):
+    def error_order(self, terms: PyTree[AbstractTerm]) -> int | None:
         if not self.recurrence.penultimate_stage_error:
             return None
 
@@ -208,10 +237,10 @@ class LowStorageSolver(AbstractSolver):
     def init(
         self,
         terms: AbstractTerm,
-        t0,
-        t1,
-        y0,
-        args,
+        t0: RealScalarLike,
+        t1: RealScalarLike,
+        y0: Y,
+        args: Args,
     ) -> _SolverState:
         del terms, t0, t1, y0, args
         return None
@@ -219,13 +248,13 @@ class LowStorageSolver(AbstractSolver):
     def step(
         self,
         terms: AbstractTerm,
-        t0,
-        t1,
-        y0,
-        args,
+        t0: RealScalarLike,
+        t1: RealScalarLike,
+        y0: Y,
+        args: Args,
         solver_state: _SolverState,
-        made_jump,
-    ):
+        made_jump: BoolScalarLike,
+    ) -> tuple[Y, Y | None, DenseInfo, _SolverState, RESULTS]:
         del solver_state, made_jump
         y1, y_error, dense_info = _low_storage_step(
             (terms, t0, t1, y0, args),
@@ -236,15 +265,15 @@ class LowStorageSolver(AbstractSolver):
     def func(
         self,
         terms: AbstractTerm,
-        t0,
-        y0,
-        args,
-    ):
+        t0: RealScalarLike,
+        y0: Y,
+        args: Args,
+    ) -> VF:
         return terms.vf(t0, y0, args)
 
-    def to_commutator_free(self):
+    def to_commutator_free(self) -> AbstractSolver:
         try:
-            from georax import AbstractLowStorageCommutatorFreeSolver
+            georax = import_module("georax")
         except ImportError as exc:
             raise ImportError(
                 "georax is required to convert a low-storage solver into a "
@@ -253,25 +282,28 @@ class LowStorageSolver(AbstractSolver):
 
         solver = self
 
-        def order(self, terms):
+        def order(self: AbstractSolver, terms: PyTree[AbstractTerm]) -> int | None:
             return solver.order(terms)
 
-        cls_dict = {
+        cls_dict: dict[str, object] = {
             "recurrence": solver.recurrence,
             "order": order,
             "__module__": type(self).__module__,
         }
 
-        if hasattr(type(self), "antisymmetric_order"):
+        solver_antisymmetric_order = getattr(solver, "antisymmetric_order", None)
+        if solver_antisymmetric_order is not None:
 
-            def antisymmetric_order(self, terms):
-                return solver.antisymmetric_order(terms)
+            def antisymmetric_order(
+                self: AbstractSolver, terms: PyTree[AbstractTerm]
+            ) -> int:
+                return solver_antisymmetric_order(terms)
 
             cls_dict["antisymmetric_order"] = antisymmetric_order
 
         commutator_free_cls = type(
             f"{type(self).__name__}CommutatorFree",
-            (AbstractLowStorageCommutatorFreeSolver,),
+            (georax.AbstractLowStorageCommutatorFreeSolver,),
             cls_dict,
         )
         return commutator_free_cls()

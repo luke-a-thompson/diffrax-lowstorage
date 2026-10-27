@@ -2,7 +2,7 @@
 
 All coefficients, square roots, solution values, and errors use Decimal arithmetic
 at 80 digits by default. Only computed log-errors are converted to float for
-plotting and slope fitting. Existing float64 scripts and outputs are untouched.
+plotting and slope fitting.
 
 Run: python docs/examples/solver_convergence_decimal.py
 """
@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal, localcontext
 from pathlib import Path
+from typing import TypedDict
 
 import matplotlib
 import numpy as np
@@ -28,6 +30,7 @@ from _convergence_plot import (
     YLABEL_FORWARD,
     set_method_title,
 )
+from matplotlib.axes import Axes
 
 
 @dataclass(frozen=True)
@@ -38,7 +41,17 @@ class DecimalRecurrence:
     B: tuple[Decimal, ...]
 
 
-def make_recurrences():
+class CurveResult(TypedDict):
+    expected_slope: int
+    measured_slope: float | None
+    fit_points: int
+    resolved: list[bool]
+    errors: list[str]
+    log10_errors: list[float]
+    roundoff_thresholds: list[str]
+
+
+def make_recurrences() -> tuple[DecimalRecurrence, ...]:
     """Recompute the exact coefficient formulas in the active Decimal context.
 
     Stage times C are unnecessary for the autonomous equation y' = -y**3.
@@ -68,7 +81,7 @@ def make_recurrences():
     )
 
 
-def step(recurrence, y, h):
+def step(recurrence: DecimalRecurrence, y: Decimal, h: Decimal) -> Decimal:
     """The same two-register Williamson recurrence, evaluated with Decimal."""
     tmp = Decimal(0)
     for i, b in enumerate(recurrence.B):
@@ -78,7 +91,9 @@ def step(recurrence, y, h):
     return y
 
 
-def solve_roundtrip(recurrence, num_steps):
+def solve_roundtrip(
+    recurrence: DecimalRecurrence, num_steps: int
+) -> tuple[Decimal, Decimal]:
     h = Decimal(1) / num_steps
     y = Decimal(1)
     for _ in range(num_steps):
@@ -89,7 +104,16 @@ def solve_roundtrip(recurrence, num_steps):
     return forward_y, y
 
 
-def plot_curve(name, hs, errors, expected_slope, precision, ax, *, backward=False):
+def plot_curve(
+    name: str,
+    hs: Sequence[Decimal],
+    errors: Sequence[Decimal],
+    expected_slope: int,
+    precision: int,
+    ax: Axes,
+    *,
+    backward: bool = False,
+) -> CurveResult:
     """Use the reference chart style with a Decimal precision cutoff."""
     unit_roundoff = Decimal(10) ** (1 - precision)
     roundoff = [100 * unit_roundoff / h for h in hs]
@@ -144,7 +168,7 @@ def plot_curve(name, hs, errors, expected_slope, precision, ax, *, backward=Fals
     }
 
 
-def plot_grid(min_power, max_power, precision, output_dir):
+def plot_grid(min_power: int, max_power: int, precision: int, output_dir: Path) -> Path:
     with localcontext() as ctx:
         ctx.prec = precision
         recurrences = make_recurrences()
@@ -154,6 +178,7 @@ def plot_grid(min_power, max_power, precision, output_dir):
         fig, axes = plt.subplots(
             len(recurrences), 2, figsize=(10, 3.2 * len(recurrences))
         )
+        solver_results: dict[str, dict[str, object]] = {}
         results = {
             "arithmetic": "decimal.Decimal",
             "precision_digits": precision,
@@ -164,14 +189,14 @@ def plot_grid(min_power, max_power, precision, output_dir):
             "min_power": min_power,
             "max_power": max_power,
             "h": [str(h) for h in hs],
-            "solvers": {},
+            "solvers": solver_results,
         }
 
         for i, recurrence in enumerate(recurrences):
             values = [solve_roundtrip(recurrence, count) for count in counts]
             forward_errors = [abs(y - exact) for y, _ in values]
             backward_errors = [abs(y - 1) for _, y in values]
-            method_results = {
+            method_results: dict[str, object] = {
                 "coefficients": {
                     "A": [str(a) for a in recurrence.A],
                     "B": [str(b) for b in recurrence.B],
@@ -195,7 +220,7 @@ def plot_grid(min_power, max_power, precision, output_dir):
                 set_method_title(
                     axes[i, j], recurrence.antisymmetric_order, backward=bool(j)
                 )
-            results["solvers"][recurrence.name] = method_results
+            solver_results[recurrence.name] = method_results
 
         fig.suptitle(rf"$\dot{{y}} = -y^3$, $y(0) = 1$, {precision}-digit arithmetic")
         fig.tight_layout()
@@ -210,7 +235,7 @@ def plot_grid(min_power, max_power, precision, output_dir):
     return output_path
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--precision", type=int, default=80)
     parser.add_argument("--min-power", type=int, default=2)
@@ -226,7 +251,7 @@ def parse_args():
     return args
 
 
-def main():
+def main() -> None:
     args = parse_args()
     output_path = plot_grid(
         args.min_power, args.max_power, args.precision, args.output_dir

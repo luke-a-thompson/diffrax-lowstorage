@@ -13,7 +13,7 @@ from diffrax._custom_types import Args, BoolScalarLike, DenseInfo, RealScalarLik
 from jaxtyping import PyTree
 from typing_extensions import override
 
-from diffrax_lowstorage import LowStorageRecurrence, LowStorageSolver
+from .base import LowStorageRecurrence, LowStorageSolver, _SolverState
 
 _s2 = np.sqrt(2.0)
 
@@ -22,7 +22,6 @@ _ees27_recurrence = LowStorageRecurrence(
     B=np.array([(2 - _s2) / 3, (4 + _s2) / 8, 3 * (3 - _s2) / 7, (9 - 4 * _s2) / 14]),
     C=np.array([0.0, (2 - _s2) / 3, (2 + _s2) / 6, (4 + _s2) / 6]),
 )
-_SolverState = Y
 
 
 class EES27(LowStorageSolver, AbstractReversibleSolver, AbstractStratonovichSolver):
@@ -49,15 +48,15 @@ class EES27(LowStorageSolver, AbstractReversibleSolver, AbstractStratonovichSolv
     recurrence: ClassVar[LowStorageRecurrence] = _ees27_recurrence
 
     @override
-    def order(self, terms):
+    def order(self, terms: PyTree[AbstractTerm]) -> int:
         del terms
         return 2
 
-    def strong_order(self, terms):
+    def strong_order(self, terms: PyTree[AbstractTerm]) -> float:
         del terms
         return 0.5
 
-    def antisymmetric_order(self, terms):
+    def antisymmetric_order(self, terms: PyTree[AbstractTerm]) -> int:
         del terms
         return 7
 

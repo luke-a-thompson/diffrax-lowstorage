@@ -42,6 +42,7 @@ dependencies = [
     "jax>=0.4.38",
     "diffrax @ git+https://github.com/sammccallum/diffrax@aeb1335b5a6278e85a270231e0f97b8db4453ae6",
     "typing_extensions>=4.5",
+    "equinox>=0.13.8",
 ]
 
 [project.urls]
@@ -53,6 +54,7 @@ Issues = "https://github.com/luke-a-thompson/diffrax-lowstorage/issues"
 dev = [
     "pytest",
     "matplotlib",
+    "ty>=0.0.92",
 ]
 
 [tool.uv.build-backend]
